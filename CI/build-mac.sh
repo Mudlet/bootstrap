@@ -40,31 +40,16 @@
 # 2 - Unsupported MSYS2/MINGGW shell type
 # 3 - Unsupported build type
 
-if [ "${MSYSTEM}" = "MSYS" ]; then
-  echo "Please run this script from an MINGW32 or MINGW64 type bash terminal appropriate"
-  echo "to the bitness you want to work on. You may do this once for each of them should"
-  echo "you wish to do both."
-  exit 2
-elif [ "${MSYSTEM}" = "MINGW64" ]; then
-  export BUILD_BITNESS="64"
-else
-  echo "This script is not set up to handle systems of type ${MSYSTEM}, only MINGW32 or"
-  echo "MINGW64 are currently supported. Please rerun this in a bash terminal of one"
-  echo "of those two types."
-  exit 2
-fi
 
-
-MINGW_BASE_DIR="${GHCUP_MSYS2}\mingw32"
-export MINGW_BASE_DIR
-MINGW_INTERNAL_BASE_DIR="/mingw${BUILD_BITNESS}"
-export MINGW_INTERNAL_BASE_DIR
-PATH="${MINGW_INTERNAL_BASE_DIR}/usr/local/bin:${MINGW_INTERNAL_BASE_DIR}/bin:/usr/bin:${PATH}"
-export PATH
+#MINGW_BASE_DIR="${GHCUP_MSYS2}\mingw32"
+#export MINGW_BASE_DIR
+#MINGW_INTERNAL_BASE_DIR="/mingw${BUILD_BITNESS}"
+#export MINGW_INTERNAL_BASE_DIR
+#PATH="${MINGW_INTERNAL_BASE_DIR}/usr/local/bin:${MINGW_INTERNAL_BASE_DIR}/bin:/usr/bin:${PATH}"
+#export PATH
 RUNNER_WORKSPACE_UNIX_PATH=$(echo "${RUNNER_WORKSPACE}" | sed 's|\\|/|g' | sed 's|D:|/d|g')
 export CCACHE_DIR=${RUNNER_WORKSPACE_UNIX_PATH}/ccache
 
-echo "MSYSTEM is: ${MSYSTEM}"
 echo "CCACHE_DIR is: ${CCACHE_DIR}"
 echo "PATH is now:"
 echo "${PATH}"
@@ -73,11 +58,11 @@ echo ""
 cd $GITHUB_WORKSPACE || exit 1
 
 LAUNCH_INI_PATH="${GITHUB_WORKSPACE}/resources/launch.ini"
-Qt6_PREFIX=${RUNNER_WORKSPACE}/qt-static-install
-QT_DIR=${Qt6_PREFIX}/lib/cmake/Qt6
-export QT_DIR
-echo "Qt6_PREFIX is: ${Qt6_PREFIX}"
-echo "QT_DIR is: ${QT_DIR}"
+#Qt6_PREFIX=${RUNNER_WORKSPACE}/qt-static-install
+#QT_DIR=${Qt6_PREFIX}/lib/cmake/Qt6
+#export QT_DIR
+echo "CMAKE_PREFIX_PATH is: ${CMAKE_PREFIX_PATH}"
+#echo "QT_DIR is: ${QT_DIR}"
 
 echo "Building apps in GameList..."
 while IFS= read -r line || [[ -n "$line" ]]; do
@@ -91,10 +76,10 @@ while IFS= read -r line || [[ -n "$line" ]]; do
   sed -i.bak "s/^MUDLET_PROFILES=.*/MUDLET_PROFILES=${gameName}/" "$LAUNCH_INI_PATH"
 
   echo "Running CMake configure..."
-  ls ${QT_DIR}/Qt6Config.cmake
+  #ls ${QT_DIR}/Qt6Config.cmake
 
-  echo "cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=$Qt6_PREFIX .."
-  cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=$Qt6_PREFIX ..
+  echo "cmake -G Ninja -DCMAKE_BUILD_TYPE=Release .."
+  cmake -G Ninja -DCMAKE_BUILD_TYPE=Release ..
 
   echo "Building.."
   ninja

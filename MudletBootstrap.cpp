@@ -1,10 +1,12 @@
 #include "MudletBootstrap.h"
 #include <QApplication>
 #include <QCryptographicHash>
+#include <QDir>
 #include <QNetworkRequest>
 #include <QRegularExpression>
 #include <QFile>
 #include <QProcess>
+#include <QProcessEnvironment>
 #include <QDebug>
 #include <QSettings>
 #include <QUrl>
@@ -203,7 +205,12 @@ void MudletBootstrap::onFetchPlatformFeedFinished() {
     QRegularExpressionMatch match = regex.match(info.url);
 
     if (match.hasMatch()) {
+        QString os = detectOS();
+        
         info.appName = match.captured(1);
+        if (os.startsWith("mac") || os.startsWith("linux")) {
+            info.appName += "." + match.captured(2);
+        }
     } else {
         qDebug() << "No match found in URL:" << info.url;
         return;
@@ -231,10 +238,90 @@ void MudletBootstrap::onDownloadProgress(qint64 bytesReceived, qint64 bytesTotal
     statusLabel->setText(QString("Downloading %1... %2 / %3 bytes").arg(info.appName).arg(bytesReceived).arg(bytesTotal));
 }
 
+void installAndRunDmg(QProcessEnvironment &env, const QString& dmgFilePath) {
+    QProcess process;
+
+    // Mount the .dmg file
+    QString mountPoint;
+    process.start("hdiutil", {"attach", dmgFilePath, "-nobrowse"});
+    process.waitForFinished();
+    QString output = process.readAllStandardOutput();
+    qDebug() << output;
+
+    // Extract the mount point (assumes it's in the last line of the output)
+    QStringList lines = output.split('\n');
+    for (const QString& line : lines) {
+        if (line.contains("/Volumes/")) {
+            mountPoint = line.section('\t', -1);
+            break;
+        }
+    }
+    if (mountPoint.isEmpty()) {
+        qWarning() << "Failed to mount .dmg.";
+        return;
+    }
+    qDebug() << "Mounted at:" << mountPoint;
+
+    // Copy the application to ~/Applications
+    QString appName = "Mudlet.app";
+    QString appPath = mountPoint + "/" + appName;
+    QString targetDir = QDir::homePath() + "/Applications/";
+    QString targetAppPath = targetDir + appName;
+
+    if (QFile::exists(targetAppPath)) {
+        qDebug() << "Application already exists at" << targetAppPath << ". Removing it...";
+        if (!QFile::remove(targetAppPath)) {
+            qWarning() << "Failed to remove existing application, trying recursive delete...";
+            if (!QDir(targetAppPath).removeRecursively()) {
+                qWarning() << "Failed to recursively remove existing application.";
+                process.start("rm", {"-rf", targetAppPath});
+                process.waitForFinished();
+                if (process.exitCode() != 0) {
+                    qWarning() << "Failed to remove application:" << process.readAllStandardError();
+                    return;
+                }
+            }
+            
+        }
+        qDebug() << "Existing application removed successfully.";
+    }
+
+    QDir().mkpath(targetDir); // Ensure the Applications folder exists
+    process.start("cp", {"-R", appPath, targetDir});
+    process.waitForFinished();
+    if (process.exitCode() != 0) {
+        qWarning() << "Failed to copy application:" << process.readAllStandardError();
+        return;
+    }
+    qDebug() << "Application copied to" << targetDir;
+
+    // Unmount the .dmg
+    process.start("hdiutil", {"detach", mountPoint});
+    process.waitForFinished();
+    if (process.exitCode() != 0) {
+        qWarning() << "Failed to unmount .dmg:" << process.readAllStandardError();
+        return;
+    }
+    qDebug() << ".dmg unmounted successfully.";
+
+    // Run the application
+    QString appExecutable = targetDir + "/Mudlet.app";
+    process.setProcessEnvironment(env);
+    process.start("open", {appExecutable});
+    process.waitForFinished();
+    if (process.exitCode() != 0) {
+        qWarning() << "Failed to launch application:" << process.readAllStandardError();
+        return;
+    }
+    qDebug() << "Application launched successfully.";
+}
+
 
 void MudletBootstrap::installApplication(const QString &filePath) {
 
     QProcess installerProcess;
+
+    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
 
     // Read the profile from the .ini file
     QString launchProfile = readLaunchProfileFromResource();
@@ -242,17 +329,16 @@ void MudletBootstrap::installApplication(const QString &filePath) {
         qDebug() << "No launch profile found. Using default.";
     } else {
         // Pass along the launch profile to the environment
-        QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
         env.insert("MUDLET_PROFILES", launchProfile);
-        installerProcess.setProcessEnvironment(env);
     }
     
 
     // Install the application
 #if defined(Q_OS_WIN)
+    installerProcess.setProcessEnvironment(env);
     installerProcess.start("cmd.exe", {"/C", outputFile});
 #elif defined(Q_OS_MAC)
-    installerProcess.start("open", {outputFile});
+    installAndRunDmg(env, outputFile);
 #elif defined(Q_OS_LINUX)
     installerProcess.start("chmod", {"+x", outputFile}); // Make executable
     installerProcess.waitForFinished();
