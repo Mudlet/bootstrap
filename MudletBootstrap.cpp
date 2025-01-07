@@ -237,8 +237,8 @@ void MudletBootstrap::onDownloadProgress(qint64 bytesReceived, qint64 bytesTotal
     }
     statusLabel->setText(QString("Downloading %1... %2 / %3 MB")
         .arg(info.appName)
-        .arg(bytesReceived/1048576.0, 0, 'g', 2)
-        .arg(bytesTotal/1048576.0, 0, 'g', 2));
+        .arg(bytesReceived/1048576.0, 0, 'f', 2)
+        .arg(bytesTotal/1048576.0, 0, 'f', 2));
 }
 
 
@@ -394,6 +394,7 @@ void MudletBootstrap::installApplication(const QString &filePath) {
 #endif
     
     statusLabel->setText("Installation Completed");
+    statusLabel->repaint();
     progressWindow->close();
 }
 
@@ -416,6 +417,9 @@ void MudletBootstrap::onDownloadFinished() {
         file.close();
         qDebug() << "Downloaded to:" << outputFile;
 
+        statusLabel->setText("Verifying SHA256...");
+        statusLabel->repaint();
+
         // Verify the SHA-256 checksum
         if (!verifyFileSha256(outputFile, info.sha256)) {
             qDebug() << "Checksum verification failed. Exiting.";
@@ -424,8 +428,10 @@ void MudletBootstrap::onDownloadFinished() {
         }
 
         statusLabel->setText(QString("Installing %1").arg(info.appName));
+        statusLabel->repaint();
 
         installApplication(outputFile);
+
 
     } else {
         qDebug() << "Failed to save file.";
