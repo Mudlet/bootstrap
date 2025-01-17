@@ -61,14 +61,31 @@ endif()
 qt_add_resources(RESOURCES resources.qrc)
 target_sources(MudletBootstrap PRIVATE ${RESOURCES})
 
+message(STATUS
+    "Project Version: ${PROJECT_VERSION}\n"
+    "Project Version Major: ${PROJECT_VERSION_MAJOR}\n"
+    "Project Version Minor: ${PROJECT_VERSION_MINOR}"
+)
+
 
 set_target_properties(MudletBootstrap PROPERTIES
     ${BUNDLE_ID_OPTION}
     MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
     MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
+    MACOSX_BUNDLE_LONG_VERSION_STRING ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
     MACOSX_BUNDLE TRUE
+    MACOSX_BUNDLE_ICON_FILE mudlet.icns
+    MACOSX_BUNDLE_BUNDLE_NAME MudletBootstrap
+    MACOSX_BUNDLE_GUI_IDENTIFIER org.mudlet.bootstrap
     WIN32_EXECUTABLE TRUE
 )
+
+if(APPLE)
+    file(GLOB ICON_FILE "mudlet.icns")
+    message(STATUS "Using icon file: ${ICON_FILE}")
+    target_sources(MudletBootstrap PRIVATE ${ICON_FILE})
+    set_source_files_properties(${ICON_FILE} PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
+endif()
 
 include(GNUInstallDirs)
 install(TARGETS MudletBootstrap

@@ -15,6 +15,7 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QMap>
+#include <QStandardPaths>
 
 QMap<QString, QString> getPlatformFeedMap(const QString &type) {
 
@@ -218,6 +219,14 @@ void MudletBootstrap::onFetchPlatformFeedFinished() {
 
     outputFile = info.appName;
 
+    QString osStr = detectOS();
+    // Mac may have an issue downloading a file into the .app directory
+    if (osStr.startsWith("mac")) {
+        outputFile = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation) + outputFile;
+    }
+
+    qDebug() << "OutputFile: " << outputFile;
+
     // Create a request and start downloading the Mudlet installer
     QNetworkRequest request{QUrl(info.url)};
     currentReply = networkManager.get(request);
@@ -226,7 +235,7 @@ void MudletBootstrap::onFetchPlatformFeedFinished() {
     connect(currentReply, &QNetworkReply::finished, this, &MudletBootstrap::onDownloadFinished);
     connect(currentReply, &QNetworkReply::errorOccurred, this, &MudletBootstrap::onDownloadError);
 
-    statusLabel->setText(QString("Downloading %1...").arg(outputFile));
+    statusLabel->setText(QString("Downloading %1...").arg(info.appName));
 }
 
 
@@ -410,6 +419,8 @@ void MudletBootstrap::onDownloadFinished() {
         statusLabel->setText(QString("Error downloading file: %1").arg(currentReply->errorString()));
         return;
     }
+
+    qDebug() << "Download finished: " << outputFile;
 
     QFile file(outputFile);
     if (file.open(QIODevice::WriteOnly)) {
