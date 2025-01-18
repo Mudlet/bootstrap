@@ -1,10 +1,12 @@
 #include "MudletBootstrap.h"
 #include <QApplication>
 #include <QCryptographicHash>
+#include <QDir>
 #include <QNetworkRequest>
 #include <QRegularExpression>
 #include <QFile>
 #include <QProcess>
+#include <QProcessEnvironment>
 #include <QDebug>
 #include <QSettings>
 #include <QUrl>
@@ -13,6 +15,7 @@
 #include <QJsonObject>
 #include <QJsonArray>
 #include <QMap>
+#include <QStandardPaths>
 
 QMap<QString, QString> getPlatformFeedMap(const QString &type) {
 
@@ -203,13 +206,26 @@ void MudletBootstrap::onFetchPlatformFeedFinished() {
     QRegularExpressionMatch match = regex.match(info.url);
 
     if (match.hasMatch()) {
+        QString os = detectOS();
+        
         info.appName = match.captured(1);
+        if (os.startsWith("mac") || os.startsWith("linux")) {
+            info.appName += "." + match.captured(2);
+        }
     } else {
         qDebug() << "No match found in URL:" << info.url;
         return;
     }
 
     outputFile = info.appName;
+
+    QString osStr = detectOS();
+    // Mac may have an issue downloading a file into the .app directory
+    if (osStr.startsWith("mac")) {
+        outputFile = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation) + outputFile;
+    }
+
+    qDebug() << "OutputFile: " << outputFile;
 
     // Create a request and start downloading the Mudlet installer
     QNetworkRequest request{QUrl(info.url)};
@@ -219,7 +235,7 @@ void MudletBootstrap::onFetchPlatformFeedFinished() {
     connect(currentReply, &QNetworkReply::finished, this, &MudletBootstrap::onDownloadFinished);
     connect(currentReply, &QNetworkReply::errorOccurred, this, &MudletBootstrap::onDownloadError);
 
-    statusLabel->setText(QString("Downloading %1...").arg(outputFile));
+    statusLabel->setText(QString("Downloading %1...").arg(info.appName));
 }
 
 
@@ -228,7 +244,134 @@ void MudletBootstrap::onDownloadProgress(qint64 bytesReceived, qint64 bytesTotal
         int progress = static_cast<int>((bytesReceived * 100) / bytesTotal);
         progressBar->setValue(progress);
     }
-    statusLabel->setText(QString("Downloading %1... %2 / %3 bytes").arg(info.appName).arg(bytesReceived).arg(bytesTotal));
+    statusLabel->setText(QString("Downloading %1... %2 / %3 MB")
+        .arg(info.appName)
+        .arg(bytesReceived/1048576.0, 0, 'f', 2)
+        .arg(bytesTotal/1048576.0, 0, 'f', 2));
+}
+
+
+void installAndRunDmg(QProcessEnvironment &env, const QString& dmgFilePath) {
+    QProcess process;
+
+    // Mount the .dmg file
+    QString mountPoint;
+    process.start("hdiutil", {"attach", dmgFilePath, "-nobrowse"});
+    process.waitForFinished();
+    QString output = process.readAllStandardOutput();
+    qDebug() << output;
+
+    // Extract the mount point (assumes it's in the last line of the output)
+    QStringList lines = output.split('\n');
+    for (const QString& line : lines) {
+        if (line.contains("/Volumes/")) {
+            mountPoint = line.section('\t', -1);
+            break;
+        }
+    }
+    if (mountPoint.isEmpty()) {
+        qWarning() << "Failed to mount .dmg.";
+        return;
+    }
+    qDebug() << "Mounted at:" << mountPoint;
+
+    // Copy the application to ~/Applications
+    QString appName = "Mudlet.app";
+    QString appPath = mountPoint + "/" + appName;
+    QString targetDir = QDir::homePath() + "/Applications/";
+    QString targetAppPath = targetDir + appName;
+
+    if (QFile::exists(targetAppPath)) {
+        qDebug() << "Application already exists at" << targetAppPath << ". Removing it...";
+        if (!QFile::remove(targetAppPath)) {
+            qWarning() << "Failed to remove existing application, trying recursive delete...";
+            if (!QDir(targetAppPath).removeRecursively()) {
+                qWarning() << "Failed to recursively remove existing application.";
+                process.start("rm", {"-rf", targetAppPath});
+                process.waitForFinished();
+                if (process.exitCode() != 0) {
+                    qWarning() << "Failed to remove application:" << process.readAllStandardError();
+                    return;
+                }
+            }
+            
+        }
+        qDebug() << "Existing application removed successfully.";
+    }
+
+    QDir().mkpath(targetDir); // Ensure the Applications folder exists
+    process.start("cp", {"-R", appPath, targetDir});
+    process.waitForFinished();
+    if (process.exitCode() != 0) {
+        qWarning() << "Failed to copy application:" << process.readAllStandardError();
+        return;
+    }
+    qDebug() << "Application copied to" << targetDir;
+
+    // Unmount the .dmg
+    process.start("hdiutil", {"detach", mountPoint});
+    process.waitForFinished();
+    if (process.exitCode() != 0) {
+        qWarning() << "Failed to unmount .dmg:" << process.readAllStandardError();
+        return;
+    }
+    qDebug() << ".dmg unmounted successfully.";
+
+    // Run the application
+    QString appExecutable = targetDir + "/Mudlet.app";
+    process.setProcessEnvironment(env);
+    process.start("open", {appExecutable});
+    process.waitForFinished();
+    if (process.exitCode() != 0) {
+        qWarning() << "Failed to launch application:" << process.readAllStandardError();
+        return;
+    }
+    qDebug() << "Application launched successfully.";
+}
+
+
+void installAndRunAppImage(QProcessEnvironment &env, const QString& tarFilePath) {
+    QProcess process;
+
+    // Extract the tar file
+    QString extractDir = QDir::tempPath() + "/ExtractedApp"; // Temporary directory for extraction
+    QDir().mkpath(extractDir); // Ensure the directory exists
+    process.start("tar", {"-xf", tarFilePath, "-C", extractDir});
+    process.waitForFinished();
+    if (process.exitCode() != 0) {
+        qWarning() << "Failed to extract tar file:" << process.readAllStandardError();
+        return;
+    }
+    qDebug() << "Tar file extracted to" << extractDir;
+
+    // Locate the AppImage file
+    QDir dir(extractDir);
+    QStringList appImages = dir.entryList({"*.AppImage"}, QDir::Files);
+    if (appImages.isEmpty()) {
+        qWarning() << "No AppImage file found in the extracted directory.";
+        return;
+    }
+    QString appImagePath = dir.filePath(appImages.first());
+    qDebug() << "Found AppImage:" << appImagePath;
+
+    // Make the AppImage executable
+    process.start("chmod", {"+x", appImagePath});
+    process.waitForFinished();
+    if (process.exitCode() != 0) {
+        qWarning() << "Failed to make AppImage executable:" << process.readAllStandardError();
+        return;
+    }
+    qDebug() << "AppImage is now executable.";
+
+    // Run the AppImage
+    process.setProcessEnvironment(env);
+    process.start(appImagePath);
+    process.waitForFinished();
+    if (process.exitCode() != 0) {
+        qWarning() << "Failed to run AppImage:" << process.readAllStandardError();
+        return;
+    }
+    qDebug() << "AppImage launched successfully.";
 }
 
 
@@ -236,30 +379,31 @@ void MudletBootstrap::installApplication(const QString &filePath) {
 
     QProcess installerProcess;
 
+    QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+
     // Read the profile from the .ini file
     QString launchProfile = readLaunchProfileFromResource();
     if (launchProfile.isEmpty()) {
         qDebug() << "No launch profile found. Using default.";
     } else {
         // Pass along the launch profile to the environment
-        QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
         env.insert("MUDLET_PROFILES", launchProfile);
-        installerProcess.setProcessEnvironment(env);
     }
     
 
     // Install the application
 #if defined(Q_OS_WIN)
+    installerProcess.setProcessEnvironment(env);
     installerProcess.start("cmd.exe", {"/C", outputFile});
+    installerProcess.waitForFinished();
 #elif defined(Q_OS_MAC)
-    installerProcess.start("open", {outputFile});
+    installAndRunDmg(env, outputFile);
 #elif defined(Q_OS_LINUX)
-    installerProcess.start("chmod", {"+x", outputFile}); // Make executable
-    installerProcess.waitForFinished();
-    installerProcess.start("./" + outputFile);
+    installAndRunAppImage(env, outputFile);
 #endif
-    installerProcess.waitForFinished();
+    
     statusLabel->setText("Installation Completed");
+    statusLabel->repaint();
     progressWindow->close();
 }
 
@@ -276,11 +420,16 @@ void MudletBootstrap::onDownloadFinished() {
         return;
     }
 
+    qDebug() << "Download finished: " << outputFile;
+
     QFile file(outputFile);
     if (file.open(QIODevice::WriteOnly)) {
         file.write(currentReply->readAll());
         file.close();
         qDebug() << "Downloaded to:" << outputFile;
+
+        statusLabel->setText("Verifying SHA256...");
+        statusLabel->repaint();
 
         // Verify the SHA-256 checksum
         if (!verifyFileSha256(outputFile, info.sha256)) {
@@ -290,8 +439,10 @@ void MudletBootstrap::onDownloadFinished() {
         }
 
         statusLabel->setText(QString("Installing %1").arg(info.appName));
+        statusLabel->repaint();
 
         installApplication(outputFile);
+
 
     } else {
         qDebug() << "Failed to save file.";
