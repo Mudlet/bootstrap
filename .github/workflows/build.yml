@@ -102,6 +102,15 @@ jobs:
         path: ${{env.QT_ROOT}}
         key: qt
 
+    - name: Install Qt
+      if: runner.os == 'Windows'
+      uses: jurplel/install-qt-action@v4
+      with:
+        version: ${{matrix.qt}}
+        dir: ${{runner.workspace}}
+        cache: true
+        modules: qttools qttranslations
+
     - name: (Windows) Compile Qt
       if: runner.os == 'Windows' && steps.restore-qt.outputs.cache-hit != 'true'
       shell: msys2 {0}
