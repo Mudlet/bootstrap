@@ -13,7 +13,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-20.04
+          - os: ubuntu-22.04
             buildname: 'Linux'
             triplet: x64-linux
             compiler: clang_64
@@ -23,7 +23,7 @@ jobs:
             triplet: x64-osx
             compiler: clang_64
             qt: '6.8.1'
-          - os: windows-2019
+          - os: windows-2022
             buildname: 'Windows'
             qt: '6.8.1'
 
