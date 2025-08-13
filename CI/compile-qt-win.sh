@@ -2,9 +2,9 @@
 
 echo "=== Cloning Qt Source Repository ==="
 cd ${RUNNER_WORKSPACE}
-git clone --branch 6.8.1 --depth 1 --no-recurse-submodules https://github.com/qt/qt5.git qt6-source
+git clone --branch 6.9.1 --depth 1 --no-recurse-submodules https://github.com/qt/qt5.git qt6-source
 cd qt6-source
-git submodule update --init qtbase qttools qttranslations
+git submodule update --init qtbase
 
 echo "=== Configuring Qt for Static Linking ==="
 perl init-repository --module-subset=qtbase,qttools,qttranslations
@@ -13,7 +13,7 @@ mkdir qt-static-build
 cd qt-static-build
 export CMAKE_SUPPRESS_DEVELOPER_WARNINGS=ON
 
-../qt6-source/configure -prefix ${RUNNER_WORKSPACE}/qt-static-install -static -static-runtime -release -opensource -no-shared -confirm-license -submodules qtbase,qttranslations,qttools -nomake tests -nomake examples -skip qt3d -skip qtmultimedia -skip qtdeclarative -skip qtshadertools -skip qtquick -skip designer -no-opengl -no-dbus -platform win32-g++ -openssl-linked
+../qt6-source/configure -prefix ${RUNNER_WORKSPACE}/qt-static-install -static -static-runtime -release -opensource -no-shared -confirm-license -submodules qtbase -nomake tests -nomake examples -skip qt3d -skip qtmultimedia -skip qtdeclarative -skip qtshadertools -skip qtquick -skip designer -no-opengl -no-dbus -platform win32-g++ -openssl-linked
 
 #../qt6-source/configure -prefix ${RUNNER_WORKSPACE}/qt-static-install -static -static-runtime -release -opensource -no-shared -confirm-license -init-submodules -submodules qtbase,qttranslations,qttools -nomake tests -nomake examples -skip qt3d -skip qtmultimedia -skip qtdeclarative -skip qtshadertools -skip qtquick -skip designer -no-opengl -no-dbus -platform win32-g++ -openssl-linked
 
