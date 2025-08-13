@@ -23,7 +23,7 @@ jobs:
             triplet: x64-osx
             compiler: clang_64
             qt: '6.8.1'
-          - os: windows-2019
+          - os: windows-2025
             buildname: 'Windows'
             qt: '6.8.1'
 
