@@ -32,13 +32,22 @@ jobs:
     - name: Checkout Source
       uses: actions/checkout@v4
 
-    - name: Install Qt
+    - name: (Linux, macOS) Install Qt
       if: runner.os == 'Linux' || runner.os == 'macOS'
       uses: jurplel/install-qt-action@v4
       with:
         version: ${{matrix.qt}}
         dir: ${{runner.workspace}}
         cache: true
+
+    - name: (Windows) Install Qt Tools & Translations
+      if: runner.os == 'Windows'
+      uses: jurplel/install-qt-action@v4
+      with:
+        version: ${{matrix.qt}}
+        dir: ${{runner.workspace}}
+        cache: true
+        modules: qttools qttranslation
 
     - name: Use CMake 3.30.3
       if: runner.os == 'Linux' || runner.os == 'macOS'
@@ -101,15 +110,6 @@ jobs:
       with:
         path: ${{env.QT_ROOT}}
         key: qt
-
-    - name: Install Qt
-      if: runner.os == 'Windows'
-      uses: jurplel/install-qt-action@v4
-      with:
-        version: ${{matrix.qt}}
-        dir: ${{runner.workspace}}
-        cache: true
-        modules: qttools qttranslations
 
     - name: (Windows) Compile Qt
       if: runner.os == 'Windows' && steps.restore-qt.outputs.cache-hit != 'true'
