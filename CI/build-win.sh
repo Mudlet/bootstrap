@@ -92,9 +92,10 @@ while IFS= read -r line || [[ -n "$line" ]]; do
 
   echo "Running CMake configure..."
   ls ${QT_DIR}/Qt6Config.cmake
+  ls C:/a/_temp/msys64/mingw64
 
   echo "cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=$Qt6_PREFIX;/mingw64 .."
-  cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=$Qt6_PREFIX;/mingw64 ..
+  cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$Qt6_PREFIX;C:\a\_temp\msys64\mingw64" ..
 
   echo "Building.."
   ninja
