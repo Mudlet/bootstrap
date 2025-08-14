@@ -24,6 +24,10 @@ if(WIN32)
     find_library(LIB_ZSTD libzstd.a REQUIRED)
     find_library(LIB_PCRE2 libpcre2-16.a REQUIRED)
     find_library(LIB_BZIP2 libbz2.a REQUIRED)
+    find_library(LIB_FREETYPE freetype REQUIRED)
+    find_library(LIB_HARFBUZZ harfbuzz REQUIRED)
+    find_library(LIB_JPEG jpeg REQUIRED)
+    find_library(LIB_PNG png REQUIRED)
 
     # Enable static runtime linking (GCC/MinGW)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static -static-libgcc -static-libstdc++")
@@ -62,6 +66,10 @@ if(WIN32)
         ${LIB_ZSTD}
         ${LIB_PCRE2}
         ${LIB_BZIP2}
+        ${LIB_FREETYPE}
+        ${LIB_HARFBUZZ}
+        ${LIB_JPEG}
+        ${LIB_PNG}
     )
 endif()
 
