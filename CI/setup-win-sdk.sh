@@ -129,7 +129,16 @@ while true; do
     "mingw-w64-${BUILDCOMPONENT}-pcre2" \
     "mingw-w64-${BUILDCOMPONENT}-bzip2" \
     "mingw-w64-${BUILDCOMPONENT}-qt6-tools" \
-    "mingw-w64-${BUILDCOMPONENT}-qt6-translations"; then
+    "mingw-w64-${BUILDCOMPONENT}-qt6-translations" \
+    "mingw-w64-${BUILDCOMPONENT}-freetype" \
+    "mingw-w64-${BUILDCOMPONENT}-harfbuzz" \
+    "mingw-w64-${BUILDCOMPONENT}-libjpeg-turbo" \
+    "mingw-w64-${BUILDCOMPONENT}-libpng" \
+    "mingw-w64-${BUILDCOMPONENT}-zstd" \
+    "mingw-w64-${BUILDCOMPONENT}-libb2" \
+    "mingw-w64-${BUILDCOMPONENT}-brotli" \
+    "mingw-w64-${BUILDCOMPONENT}-graphite2" \
+    "mingw-w64-${BUILDCOMPONENT}-gettext"; then
       break
   fi
 
@@ -150,6 +159,11 @@ ccache --max-size=10G
 #printenv
 
 echo "Debugging libbz2 symbols"
-nm /mingw64/lib/libbz2.a | grep BZ2_bzDecompressInit
+echo "BZ2 library:"
+find /mingw64/lib -name "*bz2*" -type f
+echo "PCRE2 library:"
+find /mingw64/lib -name "*pcre2*" -type f
+echo "Freetype library:"
+find /mingw64/lib -name "*freetype*" -type f
 
 exit 0

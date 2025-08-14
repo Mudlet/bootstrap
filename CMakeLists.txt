@@ -18,17 +18,22 @@ if(WIN32)
     unset(CMAKE_FIND_LIBRARY_SUFFIXES_DEBUG)
 
     # Explicitly find static libb2
+    find_library(LIB_PCRE2 libpcre2-16.a REQUIRED)
+    find_library(LIB_BZIP2 libbz2.a REQUIRED)
+    find_library(LIB_ZLIB libz.a REQUIRED)
+    find_library(LIB_ZSTD libzstd.a REQUIRED)
+    find_library(LIB_PNG libpng.a REQUIRED)
+    find_library(LIB_JPEG libjpeg.a REQUIRED)
+    find_library(LIB_FREETYPE libfreetype.a REQUIRED)
+    find_library(LIB_HARFBUZZ libharfbuzz.a REQUIRED)
     find_library(LIBB2_STATIC libb2.a REQUIRED)
     find_library(LIB_BROTLIDEC libbrotlidec.a REQUIRED)
     find_library(LIB_BROTLICOMMON libbrotlicommon.a REQUIRED)
-    find_library(LIB_ZLIB libz.a REQUIRED)
-    find_library(LIB_ZSTD libzstd.a REQUIRED)
-    find_library(LIB_PCRE2 libpcre2-16.a REQUIRED)
-    find_library(LIB_BZIP2 libbz2.a REQUIRED)
-    find_library(LIB_FREETYPE freetype REQUIRED)
-    find_library(LIB_HARFBUZZ harfbuzz REQUIRED)
-    find_library(LIB_JPEG jpeg REQUIRED)
-    find_library(LIB_PNG png REQUIRED)
+
+    # Additional system libraries that might be needed
+    find_library(LIB_GRAPHITE2 libgraphite2.a)
+    find_library(LIB_ICONV libiconv.a)
+    find_library(LIB_INTL libintl.a)
 
     # Enable static runtime linking (GCC/MinGW)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static -static-libgcc -static-libstdc++")
@@ -60,17 +65,34 @@ target_link_libraries(MudletBootstrap PRIVATE
 
 if(WIN32)
     target_link_libraries(MudletBootstrap PRIVATE
+        target_link_libraries(MudletBootstrap PRIVATE
+        # PCRE2 (needed by Qt)
+        ${LIB_PCRE2}
+        
+        # Image libraries
+        ${LIB_PNG}
+        ${LIB_JPEG}
+        
+        # FreeType and its dependencies
         ${LIB_FREETYPE}
         ${LIB_HARFBUZZ}
-        ${LIB_JPEG}
-        ${LIB_PNG}
-        ${LIB_PCRE2}
-        ${LIB_BZIP2}
+        ${LIB_BZIP2}  # FreeType dependency
+        
+        # Compression libraries
+        ${LIB_ZLIB}
+        ${LIB_ZSTD}
         ${LIBB2_STATIC}
         ${LIB_BROTLIDEC}
         ${LIB_BROTLICOMMON}
-        ${LIB_ZLIB}
-        ${LIB_ZSTD}
+        
+        # Optional libraries (if found)
+        $<$<BOOL:${LIB_GRAPHITE2}>:${LIB_GRAPHITE2}>
+        $<$<BOOL:${LIB_ICONV}>:${LIB_ICONV}>
+        $<$<BOOL:${LIB_INTL}>:${LIB_INTL}>
+    )
+
+    set_target_properties(MudletBootstrap PROPERTIES
+        LINK_FLAGS "-Wl,--allow-multiple-definition -Wl,--whole-archive -Wl,--no-whole-archive"
     )
 endif()
 
