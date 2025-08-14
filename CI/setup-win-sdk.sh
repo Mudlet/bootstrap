@@ -126,6 +126,8 @@ while true; do
     "mingw-w64-${BUILDCOMPONENT}-openssl" \
     "mingw-w64-${BUILDCOMPONENT}-cmake" \
     "mingw-w64-${BUILDCOMPONENT}-ninja" \
+    "mingw-w64-${BUILDCOMPONENT}-pcre2" \
+    "mingw-w64-${BUILDCOMPONENT}-bzip2" \
     "mingw-w64-${BUILDCOMPONENT}-qt6-tools" \
     "mingw-w64-${BUILDCOMPONENT}-qt6-translations"; then
       break
