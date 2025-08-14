@@ -65,11 +65,11 @@ if(WIN32)
         ${LIB_ZLIB}
         ${LIB_ZSTD}
         ${LIB_PCRE2}
-        ${LIB_BZIP2}
         ${LIB_FREETYPE}
         ${LIB_HARFBUZZ}
         ${LIB_JPEG}
         ${LIB_PNG}
+        ${LIB_BZIP2}
     )
 endif()
 
