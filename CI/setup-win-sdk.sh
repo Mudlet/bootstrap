@@ -146,7 +146,10 @@ done
 #export CXX="ccache g++"
 ccache --max-size=10G
 
-echo "=== Listing Environment Variables ==="
-printenv
+#echo "=== Listing Environment Variables ==="
+#printenv
+
+echo "Debugging libbz2 symbols"
+nm /mingw64/lib/libbz2.a | grep BZ2_bzDecompressInit
 
 exit 0

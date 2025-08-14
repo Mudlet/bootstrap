@@ -31,7 +31,7 @@ if(WIN32)
 
     # Enable static runtime linking (GCC/MinGW)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static -static-libgcc -static-libstdc++")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static -Wl,--gc-sections")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static -Wl,--gc-sections -lbz2")
 endif()
 
 find_package(QT NAMES Qt6 REQUIRED COMPONENTS Core Widgets Network)
@@ -69,7 +69,6 @@ if(WIN32)
         ${LIB_HARFBUZZ}
         ${LIB_JPEG}
         ${LIB_PNG}
-        ${LIB_BZIP2}
     )
 endif()
 
