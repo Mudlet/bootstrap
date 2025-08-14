@@ -65,7 +65,6 @@ target_link_libraries(MudletBootstrap PRIVATE
 
 if(WIN32)
     target_link_libraries(MudletBootstrap PRIVATE
-        target_link_libraries(MudletBootstrap PRIVATE
         # PCRE2 (needed by Qt)
         ${LIB_PCRE2}
         
