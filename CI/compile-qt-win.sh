@@ -13,7 +13,43 @@ mkdir qt-static-build
 cd qt-static-build
 export CMAKE_SUPPRESS_DEVELOPER_WARNINGS=ON
 
-../qt6-source/configure -prefix ${RUNNER_WORKSPACE}/qt-static-install -static -static-runtime -release -opensource -no-shared -confirm-license -submodules qtbase -nomake tests -nomake examples -skip qt3d -skip qtmultimedia -skip qtdeclarative -skip qtshadertools -skip qtquick -skip designer -no-opengl -no-dbus -platform win32-g++ -openssl-linked
+# Configure Qt with proper static dependencies
+../qt6-source/configure \
+    -prefix ${RUNNER_WORKSPACE}/qt-static-install \
+    -static \
+    -static-runtime \
+    -release \
+    -opensource \
+    -no-shared \
+    -confirm-license \
+    -submodules qtbase \
+    -nomake tests \
+    -nomake examples \
+    -skip qt3d \
+    -skip qtmultimedia \
+    -skip qtdeclarative \
+    -skip qtshadertools \
+    -skip qtquick \
+    -skip designer \
+    -no-opengl \
+    -no-dbus \
+    -platform win32-g++ \
+    -openssl-linked \
+    -system-pcre \
+    -system-zlib \
+    -system-libpng \
+    -system-libjpeg \
+    -system-freetype \
+    -system-harfbuzz \
+    -- \
+    -DFEATURE_system_pcre2=ON \
+    -DFEATURE_system_zlib=ON \
+    -DFEATURE_system_png=ON \
+    -DFEATURE_system_jpeg=ON \
+    -DFEATURE_system_freetype=ON \
+    -DFEATURE_system_harfbuzz=ON
+
+#../qt6-source/configure -prefix ${RUNNER_WORKSPACE}/qt-static-install -static -static-runtime -release -opensource -no-shared -confirm-license -submodules qtbase -nomake tests -nomake examples -skip qt3d -skip qtmultimedia -skip qtdeclarative -skip qtshadertools -skip qtquick -skip designer -no-opengl -no-dbus -platform win32-g++ -openssl-linked
 
 #../qt6-source/configure -prefix ${RUNNER_WORKSPACE}/qt-static-install -static -static-runtime -release -opensource -no-shared -confirm-license -init-submodules -submodules qtbase,qttranslations,qttools -nomake tests -nomake examples -skip qt3d -skip qtmultimedia -skip qtdeclarative -skip qtshadertools -skip qtquick -skip designer -no-opengl -no-dbus -platform win32-g++ -openssl-linked
 

@@ -1,11 +1,9 @@
 cmake_minimum_required(VERSION 3.25)
-
 project(MudletBootstrap VERSION 0.1 LANGUAGES CXX)
 
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
-
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -14,30 +12,16 @@ if(WIN32)
     set(QT_STATIC ON)
     set(BUILD_SHARED_LIBS OFF)
     set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
-    unset(CMAKE_FIND_LIBRARY_SUFFIXES_RELEASE)
-    unset(CMAKE_FIND_LIBRARY_SUFFIXES_DEBUG)
-
-    # Explicitly find static libb2
-    find_library(LIB_PCRE2 libpcre2-16.a REQUIRED)
-    find_library(LIB_BZIP2 libbz2.a REQUIRED)
-    find_library(LIB_ZLIB libz.a REQUIRED)
-    find_library(LIB_ZSTD libzstd.a REQUIRED)
-    find_library(LIB_PNG libpng.a REQUIRED)
-    find_library(LIB_JPEG libjpeg.a REQUIRED)
-    find_library(LIB_FREETYPE libfreetype.a REQUIRED)
-    find_library(LIB_HARFBUZZ libharfbuzz.a REQUIRED)
-    find_library(LIBB2_STATIC libb2.a REQUIRED)
-    find_library(LIB_BROTLIDEC libbrotlidec.a REQUIRED)
-    find_library(LIB_BROTLICOMMON libbrotlicommon.a REQUIRED)
-
-    # Additional system libraries that might be needed
-    find_library(LIB_GRAPHITE2 libgraphite2.a)
-    find_library(LIB_ICONV libiconv.a)
-    find_library(LIB_INTL libintl.a)
-
+    
     # Enable static runtime linking (GCC/MinGW)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static -static-libgcc -static-libstdc++")
+    
+    # Add libraries directly to linker flags - this forces them to be linked
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static -Wl,--gc-sections")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L/mingw64/lib")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -lpcre2-16 -lbz2 -lz -lpng -ljpeg -lfreetype -lharfbuzz")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -lzstd -lb2 -lbrotlidec -lbrotlicommon")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -lws2_32 -lwinmm -limm32 -lwtsapi32 -ldwmapi -luxtheme")
 endif()
 
 find_package(QT NAMES Qt6 REQUIRED COMPONENTS Core Widgets Network)
@@ -45,7 +29,6 @@ find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core Widgets Network)
 find_package(Qt6LinguistTools)
 
 set(TS_FILES MudletBootstrap_en_US.ts)
-
 set(PROJECT_SOURCES
         main.cpp
         MudletBootstrap.h
@@ -58,52 +41,21 @@ qt_add_executable(MudletBootstrap
     ${PROJECT_SOURCES}
 )
 
+# Add resources
+qt_add_resources(RESOURCES resources.qrc)
+target_sources(MudletBootstrap PRIVATE ${RESOURCES})
+
+# Link Qt libraries
 target_link_libraries(MudletBootstrap PRIVATE
     Qt${QT_VERSION_MAJOR}::Widgets
     Qt${QT_VERSION_MAJOR}::Network
 )
-
-if(WIN32)
-    target_link_libraries(MudletBootstrap PRIVATE
-        # PCRE2 (needed by Qt)
-        ${LIB_PCRE2}
-        
-        # Image libraries
-        ${LIB_PNG}
-        ${LIB_JPEG}
-        
-        # FreeType and its dependencies
-        ${LIB_FREETYPE}
-        ${LIB_HARFBUZZ}
-        ${LIB_BZIP2}  # FreeType dependency
-        
-        # Compression libraries
-        ${LIB_ZLIB}
-        ${LIB_ZSTD}
-        ${LIBB2_STATIC}
-        ${LIB_BROTLIDEC}
-        ${LIB_BROTLICOMMON}
-        
-        # Optional libraries (if found)
-        $<$<BOOL:${LIB_GRAPHITE2}>:${LIB_GRAPHITE2}>
-        $<$<BOOL:${LIB_ICONV}>:${LIB_ICONV}>
-        $<$<BOOL:${LIB_INTL}>:${LIB_INTL}>
-    )
-
-    set_target_properties(MudletBootstrap PROPERTIES
-        LINK_FLAGS "-Wl,--allow-multiple-definition -Wl,--whole-archive -Wl,--no-whole-archive"
-    )
-endif()
-
-qt_add_resources(RESOURCES resources.qrc)
-target_sources(MudletBootstrap PRIVATE ${RESOURCES})
 
 message(STATUS
     "Project Version: ${PROJECT_VERSION}\n"
     "Project Version Major: ${PROJECT_VERSION_MAJOR}\n"
     "Project Version Minor: ${PROJECT_VERSION_MINOR}"
 )
-
 
 set_target_properties(MudletBootstrap PROPERTIES
     ${BUNDLE_ID_OPTION}
