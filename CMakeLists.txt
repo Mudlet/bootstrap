@@ -106,8 +106,8 @@ if(WIN32)
     # Just ensure they're available at the end with --whole-archive
     target_link_options(MudletBootstrap PRIVATE
         "LINKER:--whole-archive"
-        "LINKER:C:/msys64/mingw64/lib/libbz2.a"
-        "LINKER:C:/msys64/mingw64/lib/libbrotlicommon.a"
+        "LINKER:C:/a/_temp/msys64/mingw64/lib/libbz2.a"
+        "LINKER:C:/a/_temp/msys64/mingw64/lib/libbrotlicommon.a"
         "LINKER:--no-whole-archive"
     )
 
