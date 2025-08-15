@@ -76,7 +76,7 @@ LAUNCH_INI_PATH="${GITHUB_WORKSPACE}/resources/launch.ini"
 Qt6_PREFIX=${RUNNER_WORKSPACE}/qt-static-install
 QT_DIR=${Qt6_PREFIX}/lib/cmake/Qt6
 export QT_DIR
-QT_LINGUIST_DIR=$(cygpath -w /a/_temp/msys64/mingw64/lib/cmake/Qt6LinguistTools)
+QT_LINGUIST_DIR=$(cygpath -w /mingw64/lib/cmake/Qt6LinguistTools)
 echo "Qt6_PREFIX is: ${Qt6_PREFIX}"
 echo "QT_DIR is: ${QT_DIR}"
 echo "QT_LINGUIST_DIR is: ${QT_LINGUIST_DIR}"
