@@ -76,7 +76,7 @@ LAUNCH_INI_PATH="${GITHUB_WORKSPACE}/resources/launch.ini"
 Qt6_PREFIX=${RUNNER_WORKSPACE}/qt-static-install
 QT_DIR=${Qt6_PREFIX}/lib/cmake/Qt6
 export QT_DIR
-QT_LINGUIST_DIR=$(cygpath -w /mingw64/lib/cmake/Qt6LinguistTools)
+QT_LINGUIST_DIR=$(cygpath -w /a/_temp/msys64/mingw64/lib/cmake/Qt6LinguistTools)
 echo "Qt6_PREFIX is: ${Qt6_PREFIX}"
 echo "QT_DIR is: ${QT_DIR}"
 echo "QT_LINGUIST_DIR is: ${QT_LINGUIST_DIR}"
@@ -153,7 +153,7 @@ if(NOT TARGET Qt6::BundledPcre2)
             NAMES pcre2-16 libpcre2-16
             PATHS
                 "/mingw64/lib"
-                "C:/msys64/mingw64/lib"
+                "C:/a/_temp/msys64/mingw64/lib"
             NO_DEFAULT_PATH
         )
     endif()
@@ -206,8 +206,8 @@ EOF
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_PREFIX_PATH="$(cygpath -w $Qt6_PREFIX)" \
     -DQt6LinguistTools_DIR="${QT_LINGUIST_DIR}" \
-    -DQt6BundledPcre2_DIR="$(cygpath -w /mingw64/lib/cmake/Qt6)" \
-    -DCMAKE_IGNORE_PATH="/mingw64/lib/cmake/Qt6" \
+    -DQt6BundledPcre2_DIR="$(cygpath -w /a/_temp/msys64/mingw64/lib/cmake/Qt6)" \
+    -DCMAKE_IGNORE_PATH="/a/_temp/msys64/mingw64/lib/cmake/Qt6" \
     ..
 
   if [ $? -ne 0 ]; then

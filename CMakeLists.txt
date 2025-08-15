@@ -76,6 +76,32 @@ target_link_libraries(MudletBootstrap PRIVATE
 
 
 if(WIN32)
+    # Detect the correct MSYS2 path (different between local and GitHub Actions)
+    if(EXISTS "C:/a/_temp/msys64/mingw64/lib")
+        # GitHub Actions path
+        set(MSYS2_LIB_PATH "C:/a/_temp/msys64/mingw64/lib")
+    elseif(EXISTS "C:/msys64/mingw64/lib")
+        # Local MSYS2 path
+        set(MSYS2_LIB_PATH "C:/msys64/mingw64/lib")
+    else()
+        # Fallback: try to detect from compiler path
+        get_filename_component(COMPILER_DIR ${CMAKE_CXX_COMPILER} DIRECTORY)
+        get_filename_component(MSYS2_ROOT ${COMPILER_DIR} DIRECTORY)
+        get_filename_component(MSYS2_ROOT ${MSYS2_ROOT} DIRECTORY)
+        set(MSYS2_LIB_PATH "${MSYS2_ROOT}/lib")
+        message(STATUS "Detected MSYS2 lib path from compiler: ${MSYS2_LIB_PATH}")
+    endif()
+    
+    message(STATUS "Using MSYS2 lib path: ${MSYS2_LIB_PATH}")
+    
+    # Verify the libraries exist
+    if(NOT EXISTS "${MSYS2_LIB_PATH}/libbz2.a")
+        message(FATAL_ERROR "libbz2.a not found at ${MSYS2_LIB_PATH}/libbz2.a")
+    endif()
+    if(NOT EXISTS "${MSYS2_LIB_PATH}/libbrotlicommon.a")
+        message(FATAL_ERROR "libbrotlicommon.a not found at ${MSYS2_LIB_PATH}/libbrotlicommon.a")
+    endif()
+
     # Don't link libraries early - let Qt's dependencies handle them
     # Just ensure they're available at the end with --whole-archive
     target_link_options(MudletBootstrap PRIVATE
