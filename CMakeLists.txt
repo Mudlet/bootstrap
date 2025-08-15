@@ -101,13 +101,17 @@ if(WIN32)
     if(NOT EXISTS "${MSYS2_LIB_PATH}/libbrotlicommon.a")
         message(FATAL_ERROR "libbrotlicommon.a not found at ${MSYS2_LIB_PATH}/libbrotlicommon.a")
     endif()
+    if(NOT EXISTS "${MSYS2_LIB_PATH}/libzstd.a")
+        message(FATAL_ERROR "libzstd.a not found at ${MSYS2_LIB_PATH}/libzstd.a")
+    endif()
 
     # Don't link libraries early - let Qt's dependencies handle them
     # Just ensure they're available at the end with --whole-archive
     target_link_options(MudletBootstrap PRIVATE
         "LINKER:--whole-archive"
-        "LINKER:C:/a/_temp/msys64/mingw64/lib/libbz2.a"
-        "LINKER:C:/a/_temp/msys64/mingw64/lib/libbrotlicommon.a"
+        "LINKER:${MSYS2_LIB_PATH}/libbz2.a"
+        "LINKER:${MSYS2_LIB_PATH}/libbrotlicommon.a"
+        "LINKER:${MSYS2_LIB_PATH}/libzstd.a"
         "LINKER:--no-whole-archive"
     )
 
