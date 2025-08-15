@@ -17,22 +17,22 @@ jobs:
             buildname: 'Linux'
             triplet: x64-linux
             compiler: clang_64
-            qt: '6.8.1'
+            qt: '6.9.1'
           - os: macos-13
             buildname: 'macOS'
             triplet: x64-osx
             compiler: clang_64
-            qt: '6.8.1'
+            qt: '6.9.1'
           - os: windows-2025
             buildname: 'Windows'
-            qt: '6.8.1'
+            qt: '6.9.1'
 
     steps:
 
     - name: Checkout Source
       uses: actions/checkout@v4
 
-    - name: Install Qt
+    - name: (Linux, macOS) Install Qt
       if: runner.os == 'Linux' || runner.os == 'macOS'
       uses: jurplel/install-qt-action@v4
       with:
@@ -103,12 +103,12 @@ jobs:
         key: qt
 
     - name: (Windows) Compile Qt
-      if: runner.os == 'Windows' && steps.restore-qt.outputs.cache-hit != 'true'
+      if: runner.os == 'Windows'&& steps.restore-qt.outputs.cache-hit != 'true'
       shell: msys2 {0}
       run: $GITHUB_WORKSPACE/CI/compile-qt-win.sh
 
     - name: (Windows) Save Qt cache
-      if: runner.os == 'Windows' && steps.restore-qt.outputs.cache-hit != 'true'
+      if: runner.os == 'Windows'&& steps.restore-qt.outputs.cache-hit != 'true'
       uses: actions/cache/save@v4
       with:
         path: ${{env.QT_ROOT}}

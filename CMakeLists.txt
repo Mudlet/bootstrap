@@ -1,11 +1,9 @@
 cmake_minimum_required(VERSION 3.25)
-
 project(MudletBootstrap VERSION 0.1 LANGUAGES CXX)
 
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
-
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -13,24 +11,47 @@ if(WIN32)
     set(QT_STATIC ON)
     set(BUILD_SHARED_LIBS OFF)
     set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
-
-    # Explicitly find static libb2
-    find_library(LIBB2_STATIC libb2.a REQUIRED)
-    find_library(LIB_BROTLIDEC libbrotlidec.a REQUIRED)
-    find_library(LIB_BROTLICOMMON libbrotlicommon.a REQUIRED)
-    find_library(LIB_ZLIB libz.a REQUIRED)
-    find_library(LIB_ZSTD libzstd.a REQUIRED)
-
+    
     # Enable static runtime linking (GCC/MinGW)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static -static-libgcc -static-libstdc++")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static -Wl,--gc-sections")
+
 endif()
 
-find_package(QT NAMES Qt6 REQUIRED COMPONENTS Core Widgets LinguistTools Network)
-find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core Widgets LinguistTools Network)
+# Explicitly prevent CMake from finding system Qt6 when we want static build
+if(WIN32 AND DEFINED CMAKE_PREFIX_PATH)
+    set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
+    set(QT_NO_CMAKE_PACKAGE_CACHE ON)
+endif()
+
+
+find_package(QT NAMES Qt6 REQUIRED COMPONENTS Core Widgets Network)
+find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core Widgets Network)
+find_package(Qt6LinguistTools QUIET)
+
+if(NOT Qt6LinguistTools_FOUND)
+    message(STATUS "Qt6LinguistTools not found in static build, trying system installation...")
+    # If not found, try to find it in the system installation
+    find_path(Qt6LinguistTools_DIR
+        NAMES Qt6LinguistToolsConfig.cmake
+        PATHS
+            /mingw64/lib/cmake/Qt6LinguistTools
+            /mingw64/share/cmake/Qt6LinguistTools
+        NO_DEFAULT_PATH
+    )
+    if(Qt6LinguistTools_DIR)
+        find_package(Qt6LinguistTools PATHS ${Qt6LinguistTools_DIR} NO_DEFAULT_PATH)
+    endif()
+endif()
+
+if(Qt6LinguistTools_FOUND)
+    message(STATUS "Found Qt6LinguistTools at: ${Qt6LinguistTools_DIR}")
+else()
+    message(WARNING "Qt6LinguistTools not found - translations will be disabled")
+endif()
+
 
 set(TS_FILES MudletBootstrap_en_US.ts)
-
 set(PROJECT_SOURCES
         main.cpp
         MudletBootstrap.h
@@ -43,30 +64,71 @@ qt_add_executable(MudletBootstrap
     ${PROJECT_SOURCES}
 )
 
+# Add resources
+qt_add_resources(RESOURCES resources.qrc)
+target_sources(MudletBootstrap PRIVATE ${RESOURCES})
+
+# Link Qt libraries
 target_link_libraries(MudletBootstrap PRIVATE
     Qt${QT_VERSION_MAJOR}::Widgets
     Qt${QT_VERSION_MAJOR}::Network
 )
 
+
 if(WIN32)
+    # Detect the correct MSYS2 path (different between local and GitHub Actions)
+    if(EXISTS "C:/a/_temp/msys64/mingw64/lib")
+        # GitHub Actions path
+        set(MSYS2_LIB_PATH "C:/a/_temp/msys64/mingw64/lib")
+    elseif(EXISTS "C:/msys64/mingw64/lib")
+        # Local MSYS2 path
+        set(MSYS2_LIB_PATH "C:/msys64/mingw64/lib")
+    else()
+        # Fallback: try to detect from compiler path
+        get_filename_component(COMPILER_DIR ${CMAKE_CXX_COMPILER} DIRECTORY)
+        get_filename_component(MSYS2_ROOT ${COMPILER_DIR} DIRECTORY)
+        get_filename_component(MSYS2_ROOT ${MSYS2_ROOT} DIRECTORY)
+        set(MSYS2_LIB_PATH "${MSYS2_ROOT}/lib")
+        message(STATUS "Detected MSYS2 lib path from compiler: ${MSYS2_LIB_PATH}")
+    endif()
+    
+    message(STATUS "Using MSYS2 lib path: ${MSYS2_LIB_PATH}")
+    
+    # Verify the libraries exist
+    if(NOT EXISTS "${MSYS2_LIB_PATH}/libbz2.a")
+        message(FATAL_ERROR "libbz2.a not found at ${MSYS2_LIB_PATH}/libbz2.a")
+    endif()
+    if(NOT EXISTS "${MSYS2_LIB_PATH}/libbrotlicommon.a")
+        message(FATAL_ERROR "libbrotlicommon.a not found at ${MSYS2_LIB_PATH}/libbrotlicommon.a")
+    endif()
+    if(NOT EXISTS "${MSYS2_LIB_PATH}/libzstd.a")
+        message(FATAL_ERROR "libzstd.a not found at ${MSYS2_LIB_PATH}/libzstd.a")
+    endif()
+
+    # Don't link libraries early - let Qt's dependencies handle them
+    # Just ensure they're available at the end with --whole-archive
+    target_link_options(MudletBootstrap PRIVATE
+        "LINKER:--whole-archive"
+        "LINKER:${MSYS2_LIB_PATH}/libbz2.a"
+        "LINKER:${MSYS2_LIB_PATH}/libbrotlicommon.a"
+        "LINKER:${MSYS2_LIB_PATH}/libzstd.a"
+        "LINKER:--no-whole-archive"
+    )
+
+    # Only link Windows system libraries
     target_link_libraries(MudletBootstrap PRIVATE
-        ${LIBB2_STATIC}
-        ${LIB_BROTLIDEC}
-        ${LIB_BROTLICOMMON}
-        ${LIB_ZLIB}
-        ${LIB_ZSTD}
+        ws2_32 winmm imm32 wtsapi32 dwmapi uxtheme
+        rpcrt4 crypt32 secur32 ole32 oleaut32 uuid
+        advapi32 shell32 user32 kernel32 gdi32 comdlg32 winspool
     )
 endif()
 
-qt_add_resources(RESOURCES resources.qrc)
-target_sources(MudletBootstrap PRIVATE ${RESOURCES})
 
 message(STATUS
     "Project Version: ${PROJECT_VERSION}\n"
     "Project Version Major: ${PROJECT_VERSION_MAJOR}\n"
     "Project Version Minor: ${PROJECT_VERSION_MINOR}"
 )
-
 
 set_target_properties(MudletBootstrap PROPERTIES
     ${BUNDLE_ID_OPTION}
