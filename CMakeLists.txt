@@ -8,25 +8,48 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 if(WIN32)
-    add_definitions(-DPCRE2_STATIC)
     set(QT_STATIC ON)
     set(BUILD_SHARED_LIBS OFF)
     set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
     
     # Enable static runtime linking (GCC/MinGW)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static -static-libgcc -static-libstdc++")
-    
-    # Add libraries directly to linker flags - this forces them to be linked
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static -Wl,--gc-sections")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L/mingw64/lib")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -lpcre2-16 -lbz2 -lz -lpng -ljpeg -lfreetype -lharfbuzz")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -lzstd -lb2 -lbrotlidec -lbrotlicommon")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -lws2_32 -lwinmm -limm32 -lwtsapi32 -ldwmapi -luxtheme")
+
 endif()
+
+# Explicitly prevent CMake from finding system Qt6 when we want static build
+if(WIN32 AND DEFINED CMAKE_PREFIX_PATH)
+    set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
+    set(QT_NO_CMAKE_PACKAGE_CACHE ON)
+endif()
+
 
 find_package(QT NAMES Qt6 REQUIRED COMPONENTS Core Widgets Network)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core Widgets Network)
-find_package(Qt6LinguistTools)
+find_package(Qt6LinguistTools QUIET)
+
+if(NOT Qt6LinguistTools_FOUND)
+    message(STATUS "Qt6LinguistTools not found in static build, trying system installation...")
+    # If not found, try to find it in the system installation
+    find_path(Qt6LinguistTools_DIR
+        NAMES Qt6LinguistToolsConfig.cmake
+        PATHS
+            /mingw64/lib/cmake/Qt6LinguistTools
+            /mingw64/share/cmake/Qt6LinguistTools
+        NO_DEFAULT_PATH
+    )
+    if(Qt6LinguistTools_DIR)
+        find_package(Qt6LinguistTools PATHS ${Qt6LinguistTools_DIR} NO_DEFAULT_PATH)
+    endif()
+endif()
+
+if(Qt6LinguistTools_FOUND)
+    message(STATUS "Found Qt6LinguistTools at: ${Qt6LinguistTools_DIR}")
+else()
+    message(WARNING "Qt6LinguistTools not found - translations will be disabled")
+endif()
+
 
 set(TS_FILES MudletBootstrap_en_US.ts)
 set(PROJECT_SOURCES
@@ -50,6 +73,26 @@ target_link_libraries(MudletBootstrap PRIVATE
     Qt${QT_VERSION_MAJOR}::Widgets
     Qt${QT_VERSION_MAJOR}::Network
 )
+
+
+if(WIN32)
+    # Don't link libraries early - let Qt's dependencies handle them
+    # Just ensure they're available at the end with --whole-archive
+    target_link_options(MudletBootstrap PRIVATE
+        "LINKER:--whole-archive"
+        "LINKER:C:/msys64/mingw64/lib/libbz2.a"
+        "LINKER:C:/msys64/mingw64/lib/libbrotlicommon.a"
+        "LINKER:--no-whole-archive"
+    )
+
+    # Only link Windows system libraries
+    target_link_libraries(MudletBootstrap PRIVATE
+        ws2_32 winmm imm32 wtsapi32 dwmapi uxtheme
+        rpcrt4 crypt32 secur32 ole32 oleaut32 uuid
+        advapi32 shell32 user32 kernel32 gdi32 comdlg32 winspool
+    )
+endif()
+
 
 message(STATUS
     "Project Version: ${PROJECT_VERSION}\n"
