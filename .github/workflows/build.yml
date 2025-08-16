@@ -42,7 +42,7 @@ jobs:
 
     - name: Use CMake 3.30.3
       if: runner.os == 'Linux' || runner.os == 'macOS'
-      uses: lukka/get-cmake@v3.30.3
+      uses: lukka/get-cmake@v4.1.0
 
     - name: (macOS) Install dependencies
       if: runner.os == 'macOS'
