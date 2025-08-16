@@ -58,6 +58,19 @@ if [[ ! -d "$uploadDirUnix" ]]; then
   mkdir -p "$uploadDirUnix"
 fi
 
+# Set up Java for code signing if Azure token is available
+if [ -n "${AZURE_ACCESS_TOKEN}" ]; then
+  echo "=== Setting up Java 21 for signing ==="
+  # Java is installed by default, we just need to select which version to use:
+  JAVA_HOME="$(cygpath -au "${JAVA_HOME_21_X64}")"
+  export JAVA_HOME
+  export PATH="${JAVA_HOME}/bin:${PATH}"
+  JAVA_JAR_WINPATHFILE="$(cygpath -aw "${GITHUB_WORKSPACE}/CI/jsign-7.0-SNAPSHOT.jar")"
+  echo "Java setup complete for code signing"
+else
+  echo "=== Code signing skipped - no Azure token provided ==="
+fi
+
 while IFS= read -r line || [[ -n "$line" ]]; do
 
   gameName=$(echo "$line" | tr -cd '[:alnum:]_-')
@@ -70,6 +83,19 @@ while IFS= read -r line || [[ -n "$line" ]]; do
   rm ./*.cpp ./*.o
 
   mv "$PACKAGE_DIR/MudletBootstrap.exe" "MudletBootstrap-${gameName}.exe"
+
+  # Sign the executable if Azure token is available
+  if [ -n "${AZURE_ACCESS_TOKEN}" ]; then
+    echo "=== Signing MudletBootstrap-${gameName}.exe ==="
+    EXECUTABLE_WINPATH="$(cygpath -aw "${PACKAGE_DIR}/MudletBootstrap-${gameName}.exe")"
+    java.exe -jar "${JAVA_JAR_WINPATHFILE}" \
+      --storetype TRUSTEDSIGNING \
+      --keystore eus.codesigning.azure.net \
+      --storepass "${AZURE_ACCESS_TOKEN}" \
+      --alias Mudlet/Mudlet \
+      "${EXECUTABLE_WINPATH}"
+    echo "Signing completed for MudletBootstrap-${gameName}.exe"
+  fi
 
   # Move packaged files to the upload directory
   echo "=== Copying files to upload directory ==="
