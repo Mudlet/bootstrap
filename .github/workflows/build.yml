@@ -180,6 +180,10 @@ jobs:
       if: runner.os == 'macOS'
       env:
         BUILD_DIR: ${{runner.workspace}}/build
+        MACOS_SIGNING_PASS: ${{github.actor != 'dependabot[bot]' && secrets.MACOS_SIGNING_PASS || ''}}
+        APPLE_USERNAME: ${{secrets.APPLE_USERNAME}}
+        APPLE_PASSWORD: ${{secrets.APPLE_PASSWORD}}
+        APPLE_TEAM_ID: ${{secrets.APPLE_TEAM_ID}}
       run: |
         chmod +x $GITHUB_WORKSPACE/CI/package-mac.sh
         $GITHUB_WORKSPACE/CI/package-mac.sh
