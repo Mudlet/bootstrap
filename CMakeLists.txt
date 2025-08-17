@@ -112,6 +112,7 @@ if(WIN32)
         "LINKER:${MSYS2_LIB_PATH}/libbz2.a"
         "LINKER:${MSYS2_LIB_PATH}/libbrotlicommon.a"
         "LINKER:${MSYS2_LIB_PATH}/libzstd.a"
+        "LINKER:${MSYS2_LIB_PATH}/libmd4c.a"
         "LINKER:--no-whole-archive"
     )
 
