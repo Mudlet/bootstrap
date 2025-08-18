@@ -157,13 +157,13 @@ jobs:
 
     - name: (Windows) Login to Azure
       uses: azure/login@v2
-      if: runner.os == 'Windows' && github.actor != 'dependabot[bot]'
+      if: runner.os == 'Windows' && github.actor != 'dependabot[bot]' && github.event_name != 'pull_request'
       with:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
 
     - name: Get Azure access token for code signing
       shell: pwsh
-      if: runner.os == 'Windows' && github.actor != 'dependabot[bot]'
+      if: runner.os == 'Windows' && github.actor != 'dependabot[bot]' && github.event_name != 'pull_request'
       run: |
         $token = (az account get-access-token --resource https://codesigning.azure.net | ConvertFrom-Json).accessToken
         "::add-mask::$token"
