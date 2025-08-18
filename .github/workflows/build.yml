@@ -13,7 +13,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-24.04
+          - os: ubuntu-22.04
             buildname: 'Linux'
             triplet: x64-linux
             compiler: clang_64
