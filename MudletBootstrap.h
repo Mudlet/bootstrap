@@ -26,11 +26,16 @@ private slots:
     void onDownloadProgress(qint64 bytesReceived, qint64 bytesTotal);
     void onDownloadFinished();
     void onDownloadError(QNetworkReply::NetworkError error);
+    void onStateMachine();
+
+signals:
+    void nextState();
 
 private:
     QNetworkAccessManager networkManager;
     QNetworkReply *currentReply;
     void fetchPlatformFeed();
+    void startDownload();
     void downloadFile(const QString &url, const QString &outputFile);
     void installApplication(const QString &filePath);
 
@@ -43,6 +48,8 @@ private:
     QString outputFile;
 
     DownloadInfo info;
+
+    int m_State;
 };
 
 #endif
