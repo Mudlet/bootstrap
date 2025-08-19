@@ -76,21 +76,38 @@ target_link_libraries(MudletBootstrap PRIVATE
 
 
 if(WIN32)
-    # Detect the correct MSYS2 path (different between local and GitHub Actions)
-    # GHA changed back to D: for win images on 8/18/25
-    if(EXISTS "D:/a/_temp/msys64/mingw64/lib")
-        # GitHub Actions path
+    if(DEFINED ENV{MINGW_PREFIX})
+        # MINGW_PREFIX should be set by GHA
+        set(MSYS2_LIB_PATH "$ENV{MINGW_PREFIX}/lib")
+        message(STATUS "Using MINGW_PREFIX: ${MSYS2_LIB_PATH}")
+    elseif(DEFINED ENV{MSYSTEM_PREFIX})
+        # MSYSTEM_PREFIX is another MSYS2 environment variable
+        set(MSYS2_LIB_PATH "$ENV{MSYSTEM_PREFIX}/lib")
+        message(STATUS "Using MSYSTEM_PREFIX: ${MSYS2_LIB_PATH}")
+    elseif(EXISTS "D:/a/_temp/msys64/mingw64/lib")
+        # GHA path (D: drive)
         set(MSYS2_LIB_PATH "D:/a/_temp/msys64/mingw64/lib")
+        message(STATUS "Using GitHub Actions D: path: ${MSYS2_LIB_PATH}")
+    elseif(EXISTS "C:/a/_temp/msys64/mingw64/lib")
+        # GHA path (C: drive)
+        set(MSYS2_LIB_PATH "C:/a/_temp/msys64/mingw64/lib")
+        message(STATUS "Using GitHub Actions C: path: ${MSYS2_LIB_PATH}")
     elseif(EXISTS "C:/msys64/mingw64/lib")
-        # Local MSYS2 path
+        # Local MSYS2 installation
         set(MSYS2_LIB_PATH "C:/msys64/mingw64/lib")
+        message(STATUS "Using local MSYS2 path: ${MSYS2_LIB_PATH}")
     else()
-        # Fallback: try to detect from compiler path
+        # Fallback: detect from compiler path
         get_filename_component(COMPILER_DIR ${CMAKE_CXX_COMPILER} DIRECTORY)
         get_filename_component(MSYS2_ROOT ${COMPILER_DIR} DIRECTORY)
         get_filename_component(MSYS2_ROOT ${MSYS2_ROOT} DIRECTORY)
         set(MSYS2_LIB_PATH "${MSYS2_ROOT}/lib")
         message(STATUS "Detected MSYS2 lib path from compiler: ${MSYS2_LIB_PATH}")
+    endif()
+    
+    # Verify the path exists and contains expected libraries
+    if(NOT EXISTS "${MSYS2_LIB_PATH}")
+        message(WARNING "MSYS2 lib path does not exist: ${MSYS2_LIB_PATH}")
     endif()
     
     message(STATUS "Using MSYS2 lib path: ${MSYS2_LIB_PATH}")
