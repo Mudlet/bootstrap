@@ -17,6 +17,7 @@ export CMAKE_SUPPRESS_DEVELOPER_WARNINGS=ON
 ../qt6-source/configure -prefix ${RUNNER_WORKSPACE}/qt-static-install \
   -static -static-runtime -release -opensource -no-shared -confirm-license \
   -init-submodules -submodules qtbase \
+  -feature-statemachine \
   -nomake tests -nomake examples \
   -skip qt3d -skip qtmultimedia -skip qtdeclarative -skip qtshadertools -skip qtquick -skip designer \
   -no-opengl -no-dbus \
