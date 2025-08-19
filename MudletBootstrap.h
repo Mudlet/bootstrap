@@ -7,6 +7,9 @@
 #include <QWidget>
 #include <QProgressBar>
 #include <QLabel>
+#include <QStateMachine>
+#include <QState>
+#include <QFinalState>
 
 struct DownloadInfo {
     QString url;
@@ -22,23 +25,34 @@ public:
     void start();
 
 private slots:
+    void fetchPlatformFeed();
     void onFetchPlatformFeedFinished();
+    void checkExistingFile();
+    void startDownload();
     void onDownloadProgress(qint64 bytesReceived, qint64 bytesTotal);
     void onDownloadFinished();
     void onDownloadError(QNetworkReply::NetworkError error);
-    void onStateMachine();
+    void verifyHash();
+    void installApplication();
+    void handleError();
+    void cleanup();
 
 signals:
-    void nextState();
+    void feedFetched();
+    void fileExists();
+    void fileNotExists();
+    void downloadComplete();
+    void hashValid();
+    void hashInvalid();
+    void installComplete();
+    void errorOccurred();
+    void finished();
 
 private:
     QNetworkAccessManager networkManager;
     QNetworkReply *currentReply;
-    void fetchPlatformFeed();
-    void startDownload();
-    void downloadFile(const QString &url, const QString &outputFile);
-    void installApplication(const QString &filePath);
-
+    void initStateMachine();
+    
     QWidget *progressWindow;
     QProgressBar *progressBar;
     QLabel *statusLabel;
@@ -49,7 +63,15 @@ private:
 
     DownloadInfo info;
 
-    int m_State;
+    QStateMachine *m_stateMachine;
+    QState *m_downloadFeedState;
+    QState *m_checkExistingState;
+    QState *m_downloadState;
+    QState *m_verifyHashState;
+    QState *m_installState;
+    QState *m_errorState;
+    QFinalState *m_doneState;
+
 };
 
 #endif

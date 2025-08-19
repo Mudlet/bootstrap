@@ -126,7 +126,7 @@ bool verifyFileSha256(const QString &filePath, const QString &expectedHash) {
 MudletBootstrap::MudletBootstrap(QObject *parent) :
     QObject(parent),
     currentReply(nullptr),
-    m_State(0) {
+    m_stateMachine(nullptr) {
 
     progressWindow = new QWidget;
     progressWindow->setWindowTitle("Downloading...");
@@ -143,86 +143,84 @@ MudletBootstrap::MudletBootstrap(QObject *parent) :
 
     progressWindow->setLayout(layout);
 
-    connect(this, &MudletBootstrap::nextState, this, &MudletBootstrap::onStateMachine);
+    initStateMachine();
+}
+
+void MudletBootstrap::initStateMachine() {
+    m_stateMachine = new QStateMachine(this);
+
+    // Create states
+    m_downloadFeedState = new QState(m_stateMachine);
+    m_checkExistingState = new QState(m_stateMachine);
+    m_downloadState = new QState(m_stateMachine);
+    m_verifyHashState = new QState(m_stateMachine);
+    m_installState = new QState(m_stateMachine);
+    m_errorState = new QState(m_stateMachine);
+    m_doneState = new QFinalState(m_stateMachine);
+
+    // Set initial state
+    m_stateMachine->setInitialState(m_downloadFeedState);
+
+    // Connect state entry actions
+    connect(m_downloadFeedState, &QState::entered, this, &MudletBootstrap::fetchPlatformFeed);
+    connect(m_checkExistingState, &QState::entered, this, &MudletBootstrap::checkExistingFile);
+    connect(m_downloadState, &QState::entered, this, &MudletBootstrap::startDownload);
+    connect(m_verifyHashState, &QState::entered, this, &MudletBootstrap::verifyHash);
+    connect(m_installState, &QState::entered, this, &MudletBootstrap::installApplication);
+    connect(m_errorState, &QState::entered, this, &MudletBootstrap::handleError);
+    connect(m_doneState, &QState::entered, this, &MudletBootstrap::cleanup);
+
+    // Add state transitions
+    m_downloadFeedState->addTransition(this, &MudletBootstrap::feedFetched, m_checkExistingState);
+    m_downloadFeedState->addTransition(this, &MudletBootstrap::errorOccurred, m_errorState);
+
+    m_checkExistingState->addTransition(this, &MudletBootstrap::fileExists, m_verifyHashState);
+    m_checkExistingState->addTransition(this, &MudletBootstrap::fileNotExists, m_downloadState);
+
+    m_downloadState->addTransition(this, &MudletBootstrap::downloadComplete, m_verifyHashState);
+    m_downloadState->addTransition(this, &MudletBootstrap::errorOccurred, m_errorState);
+
+    m_verifyHashState->addTransition(this, &MudletBootstrap::hashValid, m_installState);
+    m_verifyHashState->addTransition(this, &MudletBootstrap::hashInvalid, m_errorState);
+
+    m_installState->addTransition(this, &MudletBootstrap::installComplete, m_doneState);
+    m_installState->addTransition(this, &MudletBootstrap::errorOccurred, m_errorState);
+
+    m_errorState->addTransition(this, &MudletBootstrap::finished, m_doneState);
+
+    // Connect state machine finished signal
+    connect(m_stateMachine, &QStateMachine::finished, this, [this]() {
+        qDebug() << "State machine finished";
+        progressWindow->close();
+    });
+
+    // Debug state transitions
+    connect(m_downloadFeedState, &QState::entered, this, []() { qDebug() << "Entered: DownloadFeed"; });
+    connect(m_downloadFeedState, &QState::exited, this, []() { qDebug() << "Exited: DownloadFeed"; });
+
+    connect(m_checkExistingState, &QState::entered, this, []() { qDebug() << "Entered: CheckExisting"; });
+    connect(m_checkExistingState, &QState::exited, this, []() { qDebug() << "Exited: CheckExisting"; });
+
+    connect(m_downloadState, &QState::entered, this, []() { qDebug() << "Entered: Download"; });
+    connect(m_downloadState, &QState::exited, this, []() { qDebug() << "Exited: Download"; });
+
+    connect(m_verifyHashState, &QState::entered, this, []() { qDebug() << "Entered: VerifyHash"; });
+    connect(m_verifyHashState, &QState::exited, this, []() { qDebug() << "Exited: VerifyHash"; });
+
+    connect(m_installState, &QState::entered, this, []() { qDebug() << "Entered: Install"; });
+    connect(m_installState, &QState::exited, this, []() { qDebug() << "Exited: Install"; });
+
+    connect(m_errorState, &QState::entered, this, []() { qDebug() << "Entered: Error"; });
+    connect(m_errorState, &QState::exited, this, []() { qDebug() << "Exited: Error"; });
+
+    connect(m_doneState, &QState::entered, this, []() { qDebug() << "Entered: Done"; });
 }
 
 
 void MudletBootstrap::start() {
-    m_State = STATE_DOWNLOAD_FEED;
-    emit nextState();
+    m_stateMachine->start();
 }
 
-
-void MudletBootstrap::onStateMachine() {
-    switch (m_State) {
-        case STATE_DOWNLOAD_FEED:
-            qDebug() << "in STATE_DOWNLOAD_FEED";
-            fetchPlatformFeed();
-            // nextState emitted in onFetchPlatformFeedFinished
-            break;
-
-        case STATE_CHECK_EXISTING:
-            qDebug() << "in STATE_CHECK_EXISTING";
-            if (QFile::exists(outputFile)) {
-                qDebug() << outputFile << "exists, verifying hash";
-                m_State = STATE_VERIFY_HASH;
-            } else {
-                m_State = STATE_DOWNLOAD;
-            }
-            emit nextState();
-
-            break;
-
-        case STATE_DOWNLOAD:
-            qDebug() << "in STATE_DOWNLOAD";
-            startDownload();
-            
-            // nextState emitted in onDownloadFinished
-            break;
-
-        case STATE_VERIFY_HASH:
-            qDebug() << "in STATE_VERIFY_HASH";
-            statusLabel->setText("Verifying SHA256...");
-            statusLabel->repaint();
-
-            // Verify the SHA-256 checksum
-            if (!verifyFileSha256(outputFile, info.sha256)) {
-                qDebug() << "Checksum verification failed. Exiting.";
-                statusLabel->setText("SHA256 Verification Failed");
-                m_State = STATE_ERROR;
-            } else {
-                m_State = STATE_INSTALL;
-            }
-
-            emit nextState();
-            break;
-
-        case STATE_INSTALL:
-            qDebug() << "in STATE_INSTALL";
-            installApplication(outputFile);
-            m_State = STATE_DONE;
-            emit nextState();
-            break;
-
-        case STATE_ERROR:
-            qDebug() << "in STATE_ERROR";
-            m_State = STATE_DONE;
-            emit nextState();
-            break;
-
-        case STATE_DONE:
-            qDebug() << "in STATE_DONE";
-            if (QFile::exists(outputFile)) {
-                // delete file
-                if (!QFile::remove(outputFile)) {
-                    qDebug() << "error removing" << outputFile << " during cleanup";
-                } else {
-                    qDebug() << "removed" << outputFile;
-                }
-            }
-            break;
-    }
-}
 
 /**
  * @brief Query the platform OS and fetch the proper platform feed from dblsqd
@@ -241,6 +239,7 @@ void MudletBootstrap::fetchPlatformFeed() {
 
     if (feedUrl.isEmpty()) {
         qDebug() << "No feed URL found for platform:" << os;
+        emit errorOccurred();
         return;
     }
 
@@ -260,8 +259,7 @@ void MudletBootstrap::onFetchPlatformFeedFinished() {
     if (currentReply->error() != QNetworkReply::NoError) {
         qDebug() << "Error fetching feed:" << currentReply->errorString();
         currentReply->deleteLater();
-        m_State = STATE_ERROR;
-        emit nextState();
+        emit errorOccurred();
         return;
     }
 
@@ -271,8 +269,7 @@ void MudletBootstrap::onFetchPlatformFeedFinished() {
     QJsonDocument doc = QJsonDocument::fromJson(jsonData);
     if (doc.isNull() || !doc.isObject()) {
         qDebug() << "Invalid JSON data.";
-        m_State = STATE_ERROR;
-        emit nextState();
+        emit errorOccurred();
         return;
     }
 
@@ -280,8 +277,7 @@ void MudletBootstrap::onFetchPlatformFeedFinished() {
     QJsonArray releases = rootObj.value("releases").toArray();
     if (releases.isEmpty()) {
         qDebug() << "No releases found.";
-        m_State = STATE_ERROR;
-        emit nextState();
+        emit errorOccurred();
         return;
     }
 
@@ -305,8 +301,7 @@ void MudletBootstrap::onFetchPlatformFeedFinished() {
         }
     } else {
         qDebug() << "No match found in URL:" << info.url;
-        m_State = STATE_ERROR;
-        emit nextState();
+        emit errorOccurred();
         return;
     }
 
@@ -320,8 +315,21 @@ void MudletBootstrap::onFetchPlatformFeedFinished() {
 
     qDebug() << "OutputFile: " << outputFile;
 
-    m_State = STATE_CHECK_EXISTING;
-    emit nextState();
+    emit feedFetched();
+}
+
+
+void MudletBootstrap::checkExistingFile() {
+    statusLabel->setText("Checking existing file...");
+    qDebug() << "Checking if file exists:" << outputFile;
+
+    if (QFile::exists(outputFile)) {
+        qDebug() << outputFile << "exists";
+        emit fileExists();
+    } else {
+        qDebug() << outputFile << "does not exist";
+        emit fileNotExists();
+    }
 }
 
 
@@ -346,6 +354,61 @@ void MudletBootstrap::onDownloadProgress(qint64 bytesReceived, qint64 bytesTotal
         .arg(info.appName)
         .arg(bytesReceived/1048576.0, 0, 'f', 2)
         .arg(bytesTotal/1048576.0, 0, 'f', 2));
+}
+
+
+/**
+ * @brief Verifies the sha256 hash and starts the install process if the hash matches what we got
+ * from the dblsqd feed.
+ * Called upon completion of the Mudlet installer download.
+ * 
+ */
+void MudletBootstrap::onDownloadFinished() {
+    if (currentReply->error() != QNetworkReply::NoError) {
+        statusLabel->setText(QString("Error downloading file: %1").arg(currentReply->errorString()));
+        emit errorOccurred();
+        return;
+    }
+
+    qDebug() << "Download finished: " << outputFile;
+
+    QFile file(outputFile);
+    if (file.open(QIODevice::WriteOnly)) {
+        file.write(currentReply->readAll());
+        file.close();
+        qDebug() << "Downloaded to:" << outputFile;
+
+        emit downloadComplete();
+
+    } else {
+        qDebug() << "Failed to save file.";
+        emit errorOccurred();
+    }
+
+    currentReply->deleteLater();
+}
+
+
+void MudletBootstrap::onDownloadError(QNetworkReply::NetworkError error) {
+    qDebug() << "Download error:" << currentReply->errorString();
+    currentReply->deleteLater();
+    emit errorOccurred();
+}
+
+
+void MudletBootstrap::verifyHash() {
+    statusLabel->setText("Verifying SHA256...");
+    statusLabel->repaint();
+    qDebug() << "Verifying hash";
+
+    if (!verifyFileSha256(outputFile, info.sha256)) {
+        qDebug() << "Checksum verification failed.";
+        statusLabel->setText("SHA256 Verification Failed");
+        emit hashInvalid();
+    } else {
+        qDebug() << "Checksum verification succeeded.";
+        emit hashValid();
+    }
 }
 
 
@@ -473,7 +536,7 @@ void installAndRunAppImage(QProcessEnvironment &env, const QString& tarFilePath)
 }
 
 
-void MudletBootstrap::installApplication(const QString &filePath) {
+void MudletBootstrap::installApplication() {
 
     QProcess installerProcess;
 
@@ -505,45 +568,28 @@ void MudletBootstrap::installApplication(const QString &filePath) {
     statusLabel->setText("Installation Completed");
     statusLabel->repaint();
     progressWindow->close();
+    emit installComplete();
 }
 
 
-/**
- * @brief Verifies the sha256 hash and starts the install process if the hash matches what we got
- * from the dblsqd feed.
- * Called upon completion of the Mudlet installer download.
- * 
- */
-void MudletBootstrap::onDownloadFinished() {
-    if (currentReply->error() != QNetworkReply::NoError) {
-        statusLabel->setText(QString("Error downloading file: %1").arg(currentReply->errorString()));
-        m_State = STATE_ERROR;
-        emit nextState();
-        return;
+void MudletBootstrap::handleError() {
+    qDebug() << "Handling error state";
+    statusLabel->setText("An error occurred");
+    // Show error dialog?
+    emit finished();
+}
+
+
+void MudletBootstrap::cleanup() {
+    qDebug() << "Cleaning up";
+    if (QFile::exists(outputFile)) {
+        if (!QFile::remove(outputFile)) {
+            qDebug() << "Error removing" << outputFile << "during cleanup";
+        } else {
+            qDebug() << "Removed" << outputFile;
+        }
     }
-
-    qDebug() << "Download finished: " << outputFile;
-
-    QFile file(outputFile);
-    if (file.open(QIODevice::WriteOnly)) {
-        file.write(currentReply->readAll());
-        file.close();
-        qDebug() << "Downloaded to:" << outputFile;
-
-        m_State = STATE_VERIFY_HASH;
-
-    } else {
-        qDebug() << "Failed to save file.";
-        m_State = STATE_ERROR;
-    }
-
-    currentReply->deleteLater();
-    emit nextState();
+    progressWindow->close();
 }
 
-void MudletBootstrap::onDownloadError(QNetworkReply::NetworkError error) {
-    qDebug() << "Download error:" << currentReply->errorString();
-    currentReply->deleteLater();
-    m_State = STATE_ERROR;
-}
 
