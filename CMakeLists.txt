@@ -25,8 +25,8 @@ if(WIN32 AND DEFINED CMAKE_PREFIX_PATH)
 endif()
 
 
-find_package(QT NAMES Qt6 REQUIRED COMPONENTS Core Widgets Network)
-find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core Widgets Network)
+find_package(QT NAMES Qt6 REQUIRED COMPONENTS Core Widgets Network StateMachine)
+find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core Widgets Network StateMachine)
 find_package(Qt6LinguistTools QUIET)
 
 if(NOT Qt6LinguistTools_FOUND)
@@ -72,6 +72,7 @@ target_sources(MudletBootstrap PRIVATE ${RESOURCES})
 target_link_libraries(MudletBootstrap PRIVATE
     Qt${QT_VERSION_MAJOR}::Widgets
     Qt${QT_VERSION_MAJOR}::Network
+    Qt${QT_VERSION_MAJOR}::StateMachine
 )
 
 
