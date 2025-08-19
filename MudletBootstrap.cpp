@@ -461,7 +461,7 @@ bool installAndRunDmg(QProcessEnvironment &env, const QString& dmgFilePath) {
     }
     if (mountPoint.isEmpty()) {
         qWarning() << "Failed to mount .dmg.";
-        return;
+        return false;
     }
     qDebug() << "Mounted at:" << mountPoint;
 
