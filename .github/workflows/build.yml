@@ -104,12 +104,14 @@ jobs:
         key: qt
 
     - name: (Windows) Compile Qt
-      if: runner.os == 'Windows' && steps.restore-qt.outputs.cache-hit != 'true'
+      if: runner.os == 'Windows' 
+      #&& steps.restore-qt.outputs.cache-hit != 'true'
       shell: msys2 {0}
       run: $GITHUB_WORKSPACE/CI/compile-qt-win.sh
 
     - name: (Windows) Save Qt cache
-      if: runner.os == 'Windows' && steps.restore-qt.outputs.cache-hit != 'true'
+      if: runner.os == 'Windows' 
+      #&& steps.restore-qt.outputs.cache-hit != 'true'
       uses: actions/cache/save@v4
       with:
         path: ${{env.QT_ROOT}}
