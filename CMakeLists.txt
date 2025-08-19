@@ -11,7 +11,7 @@ if(WIN32)
     set(QT_STATIC ON)
     set(BUILD_SHARED_LIBS OFF)
     set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
-    
+
     # Enable static runtime linking (GCC/MinGW)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static -static-libgcc -static-libstdc++")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static -Wl,--gc-sections")
@@ -77,9 +77,10 @@ target_link_libraries(MudletBootstrap PRIVATE
 
 if(WIN32)
     # Detect the correct MSYS2 path (different between local and GitHub Actions)
-    if(EXISTS "C:/a/_temp/msys64/mingw64/lib")
+    # GHA changed back to D: for win images on 8/18/25
+    if(EXISTS "D:/a/_temp/msys64/mingw64/lib")
         # GitHub Actions path
-        set(MSYS2_LIB_PATH "C:/a/_temp/msys64/mingw64/lib")
+        set(MSYS2_LIB_PATH "D:/a/_temp/msys64/mingw64/lib")
     elseif(EXISTS "C:/msys64/mingw64/lib")
         # Local MSYS2 path
         set(MSYS2_LIB_PATH "C:/msys64/mingw64/lib")
