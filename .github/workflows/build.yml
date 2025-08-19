@@ -39,7 +39,24 @@ jobs:
         version: ${{matrix.qt}}
         dir: ${{runner.workspace}}
         cache: true
-        modules: 'qtstatemachine'
+
+    - name: (Linux, macOS) Check for StateMachine module availability  
+      if: runner.os == 'Linux' || runner.os == 'macOS'
+      run: |
+        echo "Checking for Qt StateMachine module..."
+        find ${{runner.workspace}}/Qt -name "*StateMachine*" -type f || echo "No StateMachine files found"
+        find ${{runner.workspace}}/Qt -name "*statemachine*" -type f || echo "No statemachine files found"
+        ls -la ${{runner.workspace}}/Qt/*/*/lib/cmake/ || echo "No cmake configs found"
+
+    - name: (Linux) Check available Qt modules
+      if: runner.os == 'Linux'
+      run: |
+        python3 -m aqt list-qt linux desktop --modules 6.9.1 gcc_64 || echo "Failed to list modules for Linux"
+
+    - name: (macOS) Check available Qt modules
+      if: runner.os == 'macOS'
+      run: |
+        python3 -m aqt list-qt mac desktop --modules 6.9.1 clang_64 || echo "Failed to list modules for macOS"
 
     - name: Use CMake 3.30.3
       if: runner.os == 'Linux' || runner.os == 'macOS'
