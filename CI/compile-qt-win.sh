@@ -33,8 +33,6 @@ echo "=== Installing Qt ==="
 cmake --install .
 
 echo "=== Verifying Installation ==="
-echo "Checking installed Qt modules:"
-ls -la ${RUNNER_WORKSPACE}/qt-static-install/lib/cmake/ | grep Qt6 || echo "No Qt6 configs found"
 
 # Check specifically for StateMachine
 if [[ -d "${RUNNER_WORKSPACE}/qt-static-install/lib/cmake/Qt6ScXML" ]]; then
