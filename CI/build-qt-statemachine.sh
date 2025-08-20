@@ -12,8 +12,6 @@ QT_STATEMACHINE_VERSION="6.9.1"
 WORKSPACE_DIR="${RUNNER_WORKSPACE:-$HOME/bootstrap}"
 QT_DIR="${WORKSPACE_DIR}/Qt/${QT_STATEMACHINE_VERSION}/$(uname | tr '[:upper:]' '[:lower:]')_$(uname -m)"
 
-ls -al ${QT_DIR}/Qt
-
 # For GitHub Actions, use the detected compiler
 if [[ "$RUNNER_OS" == "Linux" ]]; then
     QT_DIR="${WORKSPACE_DIR}/Qt/${QT_STATEMACHINE_VERSION}/gcc_64"
@@ -22,6 +20,7 @@ elif [[ "$RUNNER_OS" == "macOS" ]]; then
 fi
 
 echo "Qt directory: $QT_DIR"
+ls -al ${QT_DIR}
 echo "Workspace directory: $WORKSPACE_DIR"
 
 # Create build directory
