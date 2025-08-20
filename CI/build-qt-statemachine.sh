@@ -20,7 +20,6 @@ elif [[ "$RUNNER_OS" == "macOS" ]]; then
 fi
 
 echo "Qt directory: $QT_DIR"
-ls -al ${QT_DIR}
 echo "Workspace directory: $WORKSPACE_DIR"
 
 # Create build directory
@@ -54,6 +53,7 @@ mkdir -p build
 cd build
 
 cmake .. \
+    -G Ninja \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_INSTALL_PREFIX="$QT_DIR" \
     -DCMAKE_PREFIX_PATH="$QT_DIR"
