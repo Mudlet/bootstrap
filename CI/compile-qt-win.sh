@@ -39,7 +39,6 @@ ls -la ${RUNNER_WORKSPACE}/qt-static-install/lib/cmake/ | grep Qt6 || echo "No Q
 # Check specifically for StateMachine
 if [[ -d "${RUNNER_WORKSPACE}/qt-static-install/lib/cmake/Qt6ScXML" ]]; then
     echo "Qt ScXML successfully installed!"
-    ls -la ${RUNNER_WORKSPACE}/qt-static-install/lib/cmake/Qt6ScXML/
 else
     echo "Qt ScXML not found!"
     echo "Let's try to download and build ScXML separately..."
@@ -68,7 +67,7 @@ else
         cmake --build . --parallel
         cmake --install .
     else
-        echo "Scxml source not found in additional libraries"
+        echo "ScXML source not found in official releases"
         exit 1
     fi
 fi

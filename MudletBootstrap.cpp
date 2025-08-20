@@ -17,14 +17,6 @@
 #include <QMap>
 #include <QStandardPaths>
 
-#define STATE_DOWNLOAD_FEED     0
-#define STATE_CHECK_EXISTING    1
-#define STATE_DOWNLOAD          2
-#define STATE_VERIFY_HASH       3
-#define STATE_INSTALL           4
-#define STATE_ERROR             5
-#define STATE_DONE              6
-
 QMap<QString, QString> getPlatformFeedMap(const QString &type) {
 
     const QString dblsqdFeedType = type == "PTB" ? "public-test-build" : "release";

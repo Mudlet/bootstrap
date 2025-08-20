@@ -69,12 +69,10 @@ cmake --install .
 echo "=== Verifying Qt ScXML installation ==="
 if [[ -d "$QT_DIR/lib/cmake/Qt6Scxml" ]]; then
     echo "Qt ScXML successfully installed!"
-    ls -la "$QT_DIR/lib/cmake/Qt6Scxml/"
 
     # Also check if StateMachine functionality is available
     if [[ -d "$QT_DIR/lib/cmake/Qt6StateMachine" ]]; then
         echo "Qt StateMachine also found!"
-        ls -la "$QT_DIR/lib/cmake/Qt6StateMachine/"
     elif find "$QT_DIR" -name "*StateMachine*" -type f | grep -q .; then
         echo "StateMachine files found:"
         find "$QT_DIR" -name "*StateMachine*" -type f
