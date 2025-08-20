@@ -12,6 +12,8 @@ QT_STATEMACHINE_VERSION="6.9.1"
 WORKSPACE_DIR="${RUNNER_WORKSPACE:-$HOME/bootstrap}"
 QT_DIR="${WORKSPACE_DIR}/Qt/${QT_STATEMACHINE_VERSION}/$(uname | tr '[:upper:]' '[:lower:]')_$(uname -m)"
 
+ls -al ${QT_DIR}/Qt
+
 # For GitHub Actions, use the detected compiler
 if [[ "$RUNNER_OS" == "Linux" ]]; then
     QT_DIR="${WORKSPACE_DIR}/Qt/${QT_STATEMACHINE_VERSION}/gcc_64"
@@ -78,12 +80,12 @@ if [[ -d "$QT_DIR/lib/cmake/Qt6ScXML" ]]; then
         echo "StateMachine files found:"
         find "$QT_DIR" -name "*StateMachine*" -type f
     else
-        echo "Qt StateMachine not found, but SCXML provides state machine functionality"
+        echo "Qt StateMachine not found, but ScXML provides state machine functionality"
     fi
 else
     echo "Qt ScXML installation failed!"
     echo "Checking for any ScXML files:"
-    find "$QT_DIR" -name "*ScXML*" -type f || echo "No ScXML files found"
+    find "$QT_DIR" -name "*Scxml*" -type f || echo "No ScXML files found"
     exit 1
 fi
 
