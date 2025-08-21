@@ -227,49 +227,92 @@ jobs:
         chmod +x $GITHUB_WORKSPACE/CI/organize-launchers.sh
         $GITHUB_WORKSPACE/CI/organize-launchers.sh
     
+    - name: Generate release body
+      run: |
+        echo "=== Generating release body ==="
+        
+        # Start building the release body
+        cat > release-body.md << 'EOF'
+        ## MudletBootstrap Release ${{ github.ref_name }}
+        
+        Choose your game below and download the appropriate file for your operating system:
+        
+        EOF
+        
+        # Add each game as a section
+        if [ -d "organized-releases" ]; then
+          for game_dir in organized-releases/*/; do
+            if [ -d "$game_dir" ]; then
+              game_name=$(basename "$game_dir")
+              echo "### $game_name" >> release-body.md
+              echo "" >> release-body.md
+              
+              # Check for each platform
+              windows_file=$(find "$game_dir" -name "*Windows.exe" | head -1)
+              macos_file=$(find "$game_dir" -name "*macOS.dmg" | head -1)
+              linux_file=$(find "$game_dir" -name "*Linux.AppImage.tar" | head -1)
+              
+              if [ -n "$windows_file" ]; then
+                filename=$(basename "$windows_file")
+                echo "- **Windows**: [\`$filename\`]($filename)" >> release-body.md
+              fi
+              
+              if [ -n "$macos_file" ]; then
+                filename=$(basename "$macos_file")
+                echo "- **macOS**: [\`$filename\`]($filename)" >> release-body.md
+              fi
+              
+              if [ -n "$linux_file" ]; then
+                filename=$(basename "$linux_file")
+                echo "- **Linux**: [\`$filename\`]($filename)" >> release-body.md
+              fi
+              
+              echo "" >> release-body.md
+            fi
+          done
+        fi
+        
+        # Add installation instructions
+        cat >> release-body.md << 'EOF'
+        ## Installation Instructions
+        
+        ### Windows
+        1. Download the `.exe` file for your game
+        2. Run the executable directly
+        
+        ### macOS
+        1. Download the `.dmg` file for your game
+        2. Open the DMG file
+        3. Drag the application to your Applications folder
+        
+        ### Linux
+        1. Download the `.AppImage.tar` file for your game
+        2. Extract it: `tar -xf MudletBootstrap-[game]-Linux.AppImage.tar`
+        3. Run the AppImage: `./MudletBootstrap-[game].AppImage`
+        
+        ## System Requirements
+        
+        - **Windows**: Windows 10/11 (64-bit)
+        - **macOS**: macOS 10.15+ (Intel and Apple Silicon)
+        - **Linux**: Most modern distributions (AppImage format)
+        
+        Each download includes everything needed to run MudletBootstrap for that specific game.
+        EOF
+        
+        echo "Generated release body:"
+        cat release-body.md
+
     - name: Create Release with Game Organization
       uses: softprops/action-gh-release@v1
       with:
         files: organized-releases/**/*
         tag_name: ${{ github.ref_name }}
         name: MudletBootstrap ${{ github.ref_name }}
-        body: |
-          ## MudletBootstrap Release ${{ github.ref_name }}
-          
-          Download the appropriate launcher for your platform and game:
-          
-          ### Available Games
-          
-          Each game has dedicated launchers for all supported platforms. Choose your game and download the file for your operating system:
-          
-          ### Installation Instructions
-          
-          1. **Choose your game** from the downloads below
-          2. **Download the file** for your operating system  
-          3. **Follow the platform-specific instructions**:
-          
-          #### Windows (.exe files)
-          - Download and run the executable directly
-          
-          #### macOS (.dmg files)  
-          - Download the DMG file
-          - Open it and drag the application to your Applications folder
-          
-          #### Linux (.AppImage.tar files)
-          - Download the tar file
-          - Extract it: `tar -xf MudletBootstrap-[game]-Linux.AppImage.tar`
-          - Run the AppImage: `./MudletBootstrap-[game].AppImage`
-          
-          ### Supported Platforms
-          
-          - **Windows 10/11** (64-bit)
-          - **macOS 10.15+** (Intel and Apple Silicon)  
-          - **Linux** (AppImage format, works on most distributions)
-          
-          Each download includes everything needed to run MudletBootstrap for that specific game.
+        body_path: release-body.md
         draft: false
         prerelease: false
         generate_release_notes: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        
 
