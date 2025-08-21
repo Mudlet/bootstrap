@@ -202,14 +202,14 @@ jobs:
         $GITHUB_WORKSPACE/CI/package-linux.sh
 
     - name: (Linux, macOS) Extract Game Launchers for Release
-      if: startsWith(github.ref, 'refs/tags/') && env.UPLOAD_FILENAME
+      if: (runner.os == 'Linux' || runner.os == 'macOS') && startsWith(github.ref, 'refs/tags/') && env.UPLOAD_FILENAME
       shell: bash
       run: |
         chmod +x $GITHUB_WORKSPACE/CI/extract-launchers.sh
         $GITHUB_WORKSPACE/CI/extract-launchers.sh "${{matrix.buildname}}" "${{env.UPLOAD_FILENAME}}" "${{env.FOLDER_TO_UPLOAD}}"
 
     - name: (Windows) Extract Game Launchers for Release
-      if: startsWith(github.ref, 'refs/tags/') && env.UPLOAD_FILENAME
+      if: runner.os == 'Windows' && startsWith(github.ref, 'refs/tags/') && env.UPLOAD_FILENAME
       shell: msys2 {0}
       run: |
         chmod +x $GITHUB_WORKSPACE/CI/extract-launchers.sh
@@ -222,7 +222,7 @@ jobs:
         name: ${{env.UPLOAD_FILENAME}}
         path: ${{env.FOLDER_TO_UPLOAD}}
 
-    - name: (Tqagged Release) Upload Game Launchers
+    - name: (Tagged Release) Upload Game Launchers
       uses: actions/upload-artifact@v4
       if: startsWith(github.ref, 'refs/tags/')
       with:
