@@ -1,7 +1,10 @@
 #!/bin/bash
 
 echo "=== Organizing launchers by game ==="
-        
+
+echo "Listing files in ./platform-artifacts"
+ls ./platform-artifacts
+
 # Create organized structure
 mkdir -p organized-releases
 
