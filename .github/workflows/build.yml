@@ -205,15 +205,15 @@ jobs:
       if: startsWith(github.ref, 'refs/tags/') && env.UPLOAD_FILENAME
       shell: bash
       run: |
-        chmod +x ./CI/extract-launchers.sh
-        /CI/extract-launchers.sh "${{matrix.buildname}}" "${{env.UPLOAD_FILENAME}}" "${{env.FOLDER_TO_UPLOAD}}"
+        chmod +x $GITHUB_WORKSPACE/CI/extract-launchers.sh
+        $GITHUB_WORKSPACE/CI/extract-launchers.sh "${{matrix.buildname}}" "${{env.UPLOAD_FILENAME}}" "${{env.FOLDER_TO_UPLOAD}}"
 
     - name: (Windows) Extract Game Launchers for Release
       if: startsWith(github.ref, 'refs/tags/') && env.UPLOAD_FILENAME
       shell: msys2 {0}
       run: |
-        chmod +x ./CI/extract-launchers.sh
-        /CI/extract-launchers.sh "${{matrix.buildname}}" "${{env.UPLOAD_FILENAME}}" "${{env.FOLDER_TO_UPLOAD}}"
+        chmod +x $GITHUB_WORKSPACE/CI/extract-launchers.sh
+        $GITHUB_WORKSPACE/CI/extract-launchers.sh "${{matrix.buildname}}" "${{env.UPLOAD_FILENAME}}" "${{env.FOLDER_TO_UPLOAD}}"
 
     - name: Upload Packaged Product
       uses: actions/upload-artifact@v4
@@ -247,13 +247,13 @@ jobs:
     
     - name: Organize launchers by game
       run: |
-        chmod +x ./CI/organize-launchers.sh
-        ./CI/organize-launchers.sh
+        chmod +x $GITHUB_WORKSPACE/CI/organize-launchers.sh
+        $GITHUB_WORKSPACE/CI/organize-launchers.sh
     
     - name: Create Individual Game Releases
       run: |
-        chmod +x ./CI/create-releases.sh
-        ./CI/create-releases.sh
+        chmod +x $GITHUB_WORKSPACE/CI/create-releases.sh
+        $GITHUB_WORKSPACE/CI/create-releases.sh
     
     - name: Create Combined Release with Game Organization
       uses: softprops/action-gh-release@v1
@@ -306,4 +306,3 @@ jobs:
         generate_release_notes: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        
