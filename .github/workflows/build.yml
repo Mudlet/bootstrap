@@ -208,13 +208,6 @@ jobs:
         name: ${{env.UPLOAD_FILENAME}}
         path: ${{env.FOLDER_TO_UPLOAD}}
 
-    - name: (Tagged Release) Upload Game Launchers
-      uses: actions/upload-artifact@v4
-      if: startsWith(github.ref, 'refs/tags/')
-      with:
-        name: game-launchers-${{matrix.buildname}}
-        path: extracted-games/*/MudletBootstrap-*
-
   release:
     if: startsWith(github.ref, 'refs/tags/')
     needs: compile
@@ -224,24 +217,17 @@ jobs:
     - name: Checkout Source (for GameList.txt)
       uses: actions/checkout@v5
     
-    - name: Download all game launchers
+    - name: Download all platform artifacts
       uses: actions/download-artifact@v4
       with:
-        path: ./release-artifacts
-        pattern: game-launchers-*
-        merge-multiple: true
+        path: ./platform-artifacts
     
     - name: Organize launchers by game
       run: |
         chmod +x $GITHUB_WORKSPACE/CI/organize-launchers.sh
         $GITHUB_WORKSPACE/CI/organize-launchers.sh
     
-    - name: Create Individual Game Releases
-      run: |
-        chmod +x $GITHUB_WORKSPACE/CI/create-releases.sh
-        $GITHUB_WORKSPACE/CI/create-releases.sh
-    
-    - name: Create Combined Release with Game Organization
+    - name: Create Release with Game Organization
       uses: softprops/action-gh-release@v1
       with:
         files: organized-releases/**/*
@@ -254,37 +240,31 @@ jobs:
           
           ### Available Games
           
-          Each game has dedicated launchers for all supported platforms:
+          Each game has dedicated launchers for all supported platforms. Choose your game and download the file for your operating system:
           
-          $(if [ -f "GameList.txt" ]; then
-            while IFS= read -r game || [ -n "$game" ]; do
-              if [[ -n "$game" && ! "$game" =~ ^[[:space:]]*# ]]; then
-                echo "#### $game"
-                if [ -f "organized-releases/$game/MudletBootstrap-$game-Windows.exe" ]; then
-                  echo "- 🪟 Windows: \`MudletBootstrap-$game-Windows.exe\`"
-                fi
-                if [ -f "organized-releases/$game/MudletBootstrap-$game-macOS.dmg" ]; then
-                  echo "- 🍎 macOS: \`MudletBootstrap-$game-macOS.dmg\`"
-                fi
-                if [ -f "organized-releases/$game/MudletBootstrap-$game-Linux.AppImage.tar" ]; then
-                  echo "- 🐧 Linux: \`MudletBootstrap-$game-Linux.AppImage.tar\`"
-                fi
-                echo ""
-              fi
-            done < GameList.txt
-          fi)
+          ### Installation Instructions
           
-          ### Installation
+          1. **Choose your game** from the downloads below
+          2. **Download the file** for your operating system  
+          3. **Follow the platform-specific instructions**:
           
-          1. **Choose your game** from the list above
-          2. **Download the file** for your operating system
-          3. **Follow the platform-specific instructions** in the game's README.md
+          #### Windows (.exe files)
+          - Download and run the executable directly
+          
+          #### macOS (.dmg files)  
+          - Download the DMG file
+          - Open it and drag the application to your Applications folder
+          
+          #### Linux (.AppImage.tar files)
+          - Download the tar file
+          - Extract it: `tar -xf MudletBootstrap-[game]-Linux.AppImage.tar`
+          - Run the AppImage: `./MudletBootstrap-[game].AppImage`
           
           ### Supported Platforms
           
-          - **Windows**: Download and run the .exe file
-          - **macOS**: Download the .dmg, open it, and drag to Applications
-          - **Linux**: Download the .AppImage.tar, extract it, and run the AppImage
+          - **Windows 10/11** (64-bit)
+          - **macOS 10.15+** (Intel and Apple Silicon)  
+          - **Linux** (AppImage format, works on most distributions)
           
           Each download includes everything needed to run MudletBootstrap for that specific game.
         draft: false
@@ -292,3 +272,4 @@ jobs:
         generate_release_notes: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        
