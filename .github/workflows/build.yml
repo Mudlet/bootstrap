@@ -1,7 +1,9 @@
 name: Build MudletBootstrap
 on:
   push:
-    branches: [master]
+    branches: [master, development]
+    tags:
+      - 'v*' # Add tag trigger for releases
   pull_request:
   workflow_dispatch:
 
@@ -199,6 +201,20 @@ jobs:
         chmod +x $GITHUB_WORKSPACE/CI/package-linux.sh
         $GITHUB_WORKSPACE/CI/package-linux.sh
 
+    - name: (Linux, macOS) Extract Game Launchers for Release
+      if: startsWith(github.ref, 'refs/tags/') && env.UPLOAD_FILENAME
+      shell: bash
+      run: |
+        chmod +x ./CI/extract-launchers.sh
+        /CI/extract-launchers.sh "${{matrix.buildname}}" "${{env.UPLOAD_FILENAME}}" "${{env.FOLDER_TO_UPLOAD}}"
+
+    - name: (Windows) Extract Game Launchers for Release
+      if: startsWith(github.ref, 'refs/tags/') && env.UPLOAD_FILENAME
+      shell: msys2 {0}
+      run: |
+        chmod +x ./CI/extract-launchers.sh
+        /CI/extract-launchers.sh "${{matrix.buildname}}" "${{env.UPLOAD_FILENAME}}" "${{env.FOLDER_TO_UPLOAD}}"
+
     - name: Upload Packaged Product
       uses: actions/upload-artifact@v4
       if: env.UPLOAD_FILENAME
@@ -206,3 +222,88 @@ jobs:
         name: ${{env.UPLOAD_FILENAME}}
         path: ${{env.FOLDER_TO_UPLOAD}}
 
+    - name: (Tqagged Release) Upload Game Launchers
+      uses: actions/upload-artifact@v4
+      if: startsWith(github.ref, 'refs/tags/')
+      with:
+        name: game-launchers-${{matrix.buildname}}
+        path: extracted-games/*/MudletBootstrap-*
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: compile
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout Source (for GameList.txt)
+      uses: actions/checkout@v5
+    
+    - name: Download all game launchers
+      uses: actions/download-artifact@v4
+      with:
+        path: ./release-artifacts
+        pattern: game-launchers-*
+        merge-multiple: true
+    
+    - name: Organize launchers by game
+      run: |
+        chmod +x ./CI/organize-launchers.sh
+        ./CI/organize-launchers.sh
+    
+    - name: Create Individual Game Releases
+      run: |
+        chmod +x ./CI/create-releases.sh
+        ./CI/create-releases.sh
+    
+    - name: Create Combined Release with Game Organization
+      uses: softprops/action-gh-release@v1
+      with:
+        files: organized-releases/**/*
+        tag_name: ${{ github.ref_name }}
+        name: MudletBootstrap ${{ github.ref_name }}
+        body: |
+          ## MudletBootstrap Release ${{ github.ref_name }}
+          
+          Download the appropriate launcher for your platform and game:
+          
+          ### Available Games
+          
+          Each game has dedicated launchers for all supported platforms:
+          
+          $(if [ -f "GameList.txt" ]; then
+            while IFS= read -r game || [ -n "$game" ]; do
+              if [[ -n "$game" && ! "$game" =~ ^[[:space:]]*# ]]; then
+                echo "#### $game"
+                if [ -f "organized-releases/$game/MudletBootstrap-$game-Windows.exe" ]; then
+                  echo "- 🪟 Windows: \`MudletBootstrap-$game-Windows.exe\`"
+                fi
+                if [ -f "organized-releases/$game/MudletBootstrap-$game-macOS.dmg" ]; then
+                  echo "- 🍎 macOS: \`MudletBootstrap-$game-macOS.dmg\`"
+                fi
+                if [ -f "organized-releases/$game/MudletBootstrap-$game-Linux.AppImage.tar" ]; then
+                  echo "- 🐧 Linux: \`MudletBootstrap-$game-Linux.AppImage.tar\`"
+                fi
+                echo ""
+              fi
+            done < GameList.txt
+          fi)
+          
+          ### Installation
+          
+          1. **Choose your game** from the list above
+          2. **Download the file** for your operating system
+          3. **Follow the platform-specific instructions** in the game's README.md
+          
+          ### Supported Platforms
+          
+          - **Windows**: Download and run the .exe file
+          - **macOS**: Download the .dmg, open it, and drag to Applications
+          - **Linux**: Download the .AppImage.tar, extract it, and run the AppImage
+          
+          Each download includes everything needed to run MudletBootstrap for that specific game.
+        draft: false
+        prerelease: false
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        
