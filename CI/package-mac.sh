@@ -176,7 +176,7 @@ while IFS= read -r line || [[ -n "$line" ]]; do
 
   mv "${HOME}/Desktop/${appBaseName}.dmg" "${GITHUB_WORKSPACE}/upload/${appBaseName}-${gameName}.dmg"
 
-   If this is a release, also copy to extracted-games with standardized naming
+  # If this is a release, also copy to extracted-games with standardized naming
   if [ "$IS_RELEASE" = true ]; then
     echo "Creating release version for $gameName"
     mkdir -p "${GITHUB_WORKSPACE}/extracted-games/$gameName"
