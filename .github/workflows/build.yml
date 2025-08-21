@@ -254,17 +254,17 @@ jobs:
               
               if [ -n "$windows_file" ]; then
                 filename=$(basename "$windows_file")
-                echo "- **Windows**: [\`$filename\`]($filename)" >> release-body.md
+                echo "- **Windows**: [\`$filename\`]($BASE_URL/$filename)" >> release-body.md
               fi
               
               if [ -n "$macos_file" ]; then
                 filename=$(basename "$macos_file")
-                echo "- **macOS**: [\`$filename\`]($filename)" >> release-body.md
+                echo "- **macOS**: [\`$filename\`]($BASE_URL/$filename)" >> release-body.md
               fi
               
               if [ -n "$linux_file" ]; then
                 filename=$(basename "$linux_file")
-                echo "- **Linux**: [\`$filename\`]($filename)" >> release-body.md
+                echo "- **Linux**: [\`$filename\`]($BASE_URL/$filename)" >> release-body.md
               fi
               
               echo "" >> release-body.md
@@ -314,5 +314,5 @@ jobs:
         generate_release_notes: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        
+
 
