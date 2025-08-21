@@ -40,7 +40,7 @@ jobs:
         dir: ${{runner.workspace}}
         cache: true
 
-    - name: Use CMake 3.30.3
+    - name: (Linux, macOS) Use CMake 4.1.0
       if: runner.os == 'Linux' || runner.os == 'macOS'
       uses: lukka/get-cmake@v4.1.0
 
@@ -79,6 +79,13 @@ jobs:
         sudo apt-get install ccache pkg-config
 
         echo "CCACHE_DIR=${{runner.workspace}}/ccache" >> $GITHUB_ENV
+
+    - name: (Linux, macOS) Build Qt StateMachine Module
+      if: runner.os == 'Linux' || runner.os == 'macOS'
+      run: |
+        # Make the build script executable and run it
+        chmod +x ./CI/build-qt-statemachine.sh
+        ./CI/build-qt-statemachine.sh
 
     - name: (Windows) Setup MSYS2
       if: runner.os == 'Windows'
