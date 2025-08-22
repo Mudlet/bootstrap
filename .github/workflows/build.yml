@@ -285,12 +285,12 @@ jobs:
         
         ### Windows
         1. Download the `.exe` file for your game
-        2. Run the executable directly
+        2. Run the executable MudletBootstrap directly
         
         ### macOS
         1. Download the `.dmg` file for your game
         2. Open the DMG file
-        3. Drag the application to your Applications folder
+        3. Runt he MudletBootstrap app from within the mounted DMG
         
         ### Linux
         1. Download the `.AppImage.tar` file for your game
@@ -300,7 +300,7 @@ jobs:
         ## System Requirements
         
         - **Windows**: Windows 10/11 (64-bit)
-        - **macOS**: macOS 10.15+ (Intel and Apple Silicon)
+        - **macOS**: macOS 10.13+ (Intel and Apple Silicon)
         - **Linux**: Most modern distributions (AppImage format)
         
         Each download includes everything needed to run MudletBootstrap for that specific game.
@@ -318,7 +318,7 @@ jobs:
         body_path: release-body.md
         draft: false
         prerelease: false
-        generate_release_notes: true
+        generate_release_notes: false
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
