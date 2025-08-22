@@ -231,6 +231,13 @@ jobs:
       run: |
         echo "=== Generating release body ==="
         
+        # Get repository and tag info
+        REPO="${{ github.repository }}"
+        TAG="${{ github.ref_name }}"
+        BASE_URL="https://github.com/$REPO/releases/download/$TAG"
+        
+        echo "Base URL: $BASE_URL"
+
         # Start building the release body
         cat > release-body.md << 'EOF'
         ## MudletBootstrap Release ${{ github.ref_name }}
