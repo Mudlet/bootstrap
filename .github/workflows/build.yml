@@ -295,7 +295,9 @@ jobs:
         ### Linux
         1. Download the `.AppImage.tar` file for your game
         2. Extract it: `tar -xf MudletBootstrap-[game]-Linux.AppImage.tar`
-        3. Run the AppImage: `./MudletBootstrap-[game].AppImage`
+        2. Extract and run the AppImage within: `MudletBootstrap-[game].AppImage`
+        3. You can delete MudletBootstrap after - Mudlet is all set up to play your favourite game.
+        
         
         ## System Requirements
         
