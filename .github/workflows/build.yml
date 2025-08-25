@@ -285,7 +285,9 @@ jobs:
         
         ### Windows
         1. Download the `.exe` file for your game
-        2. Run the executable MudletBootstrap directly
+        2. Run MudletBootstrap - it'll download & install Mudlet for you
+        3. You can delete MudletBootstrap after - Mudlet is all set up to play your favourite game.
+        
         
         ### macOS
         1. Download the `.dmg` file for your game
