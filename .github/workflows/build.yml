@@ -288,7 +288,6 @@ jobs:
         2. Run MudletBootstrap - it'll download & install Mudlet for you
         3. You can delete MudletBootstrap after - Mudlet is all set up to play your favourite game.
         
-        
         ### macOS
         1. Download the `.dmg` file for your game
         2. Open the DMG file
@@ -298,16 +297,7 @@ jobs:
         1. Download the `.AppImage.tar` file for your game
         2. Extract it: `tar -xf MudletBootstrap-[game]-Linux.AppImage.tar`
         2. Extract and run the AppImage within: `MudletBootstrap-[game].AppImage`
-        3. You can delete MudletBootstrap after - Mudlet is all set up to play your favourite game.
-        
-        
-        ## System Requirements
-        
-        - **Windows**: Windows 10/11 (64-bit)
-        - **macOS**: macOS 10.13+ (Intel and Apple Silicon)
-        - **Linux**: Most modern distributions (AppImage format)
-        
-        Each download includes everything needed to run MudletBootstrap for that specific game.
+        3. You can delete MudletBootstrap after - Mudlet is all set up to play your favourite 
         EOF
         
         echo "Generated release body:"
