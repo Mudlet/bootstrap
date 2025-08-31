@@ -595,8 +595,11 @@ void MudletBootstrap::installApplication() {
     }
 
     // Create autologin file for the wanted profile
-    QString confDirDefault = QStringLiteral("%1").arg(QDir::homePath()) + 
-        QDir::separator() + ".config" + QDir::separator() + "mudlet" + QDir::separator() + launchProfile;
+    QString confDirDefault = QDir::homePath() + 
+        QDir::separator() + ".config" +
+        QDir::separator() + "mudlet" +
+        QDir::separator() + "profiles" + 
+        QDir::separator() + launchProfile;
     QDir configDir;
     if (!configDir.mkpath(confDirDefault)) {
         qDebug() << "Failed to create config directory:" << confDirDefault;
