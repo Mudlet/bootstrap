@@ -11,7 +11,7 @@ if(WIN32)
     set(QT_STATIC ON)
     set(BUILD_SHARED_LIBS OFF)
     set(CMAKE_FIND_LIBRARY_SUFFIXES ".a")
-    
+
     # Enable static runtime linking (GCC/MinGW)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static -static-libgcc -static-libstdc++")
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static -Wl,--gc-sections")
@@ -27,6 +27,10 @@ endif()
 
 find_package(QT NAMES Qt6 REQUIRED COMPONENTS Core Widgets Network)
 find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Core Widgets Network)
+
+# Try to find StateMachine module
+find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS StateMachine)
+
 find_package(Qt6LinguistTools QUIET)
 
 if(NOT Qt6LinguistTools_FOUND)
@@ -72,24 +76,43 @@ target_sources(MudletBootstrap PRIVATE ${RESOURCES})
 target_link_libraries(MudletBootstrap PRIVATE
     Qt${QT_VERSION_MAJOR}::Widgets
     Qt${QT_VERSION_MAJOR}::Network
+    Qt${QT_VERSION_MAJOR}::StateMachine
 )
 
 
 if(WIN32)
-    # Detect the correct MSYS2 path (different between local and GitHub Actions)
-    if(EXISTS "C:/a/_temp/msys64/mingw64/lib")
-        # GitHub Actions path
+    if(DEFINED ENV{MINGW_PREFIX})
+        # MINGW_PREFIX should be set by GHA
+        set(MSYS2_LIB_PATH "$ENV{MINGW_PREFIX}/lib")
+        message(STATUS "Using MINGW_PREFIX: ${MSYS2_LIB_PATH}")
+    elseif(DEFINED ENV{MSYSTEM_PREFIX})
+        # MSYSTEM_PREFIX is another MSYS2 environment variable
+        set(MSYS2_LIB_PATH "$ENV{MSYSTEM_PREFIX}/lib")
+        message(STATUS "Using MSYSTEM_PREFIX: ${MSYS2_LIB_PATH}")
+    elseif(EXISTS "D:/a/_temp/msys64/mingw64/lib")
+        # GHA path (D: drive)
+        set(MSYS2_LIB_PATH "D:/a/_temp/msys64/mingw64/lib")
+        message(STATUS "Using GitHub Actions D: path: ${MSYS2_LIB_PATH}")
+    elseif(EXISTS "C:/a/_temp/msys64/mingw64/lib")
+        # GHA path (C: drive)
         set(MSYS2_LIB_PATH "C:/a/_temp/msys64/mingw64/lib")
+        message(STATUS "Using GitHub Actions C: path: ${MSYS2_LIB_PATH}")
     elseif(EXISTS "C:/msys64/mingw64/lib")
-        # Local MSYS2 path
+        # Local MSYS2 installation
         set(MSYS2_LIB_PATH "C:/msys64/mingw64/lib")
+        message(STATUS "Using local MSYS2 path: ${MSYS2_LIB_PATH}")
     else()
-        # Fallback: try to detect from compiler path
+        # Fallback: detect from compiler path
         get_filename_component(COMPILER_DIR ${CMAKE_CXX_COMPILER} DIRECTORY)
         get_filename_component(MSYS2_ROOT ${COMPILER_DIR} DIRECTORY)
         get_filename_component(MSYS2_ROOT ${MSYS2_ROOT} DIRECTORY)
         set(MSYS2_LIB_PATH "${MSYS2_ROOT}/lib")
         message(STATUS "Detected MSYS2 lib path from compiler: ${MSYS2_LIB_PATH}")
+    endif()
+    
+    # Verify the path exists and contains expected libraries
+    if(NOT EXISTS "${MSYS2_LIB_PATH}")
+        message(WARNING "MSYS2 lib path does not exist: ${MSYS2_LIB_PATH}")
     endif()
     
     message(STATUS "Using MSYS2 lib path: ${MSYS2_LIB_PATH}")
@@ -112,6 +135,7 @@ if(WIN32)
         "LINKER:${MSYS2_LIB_PATH}/libbz2.a"
         "LINKER:${MSYS2_LIB_PATH}/libbrotlicommon.a"
         "LINKER:${MSYS2_LIB_PATH}/libzstd.a"
+        "LINKER:${MSYS2_LIB_PATH}/libmd4c.a"
         "LINKER:--no-whole-archive"
     )
 

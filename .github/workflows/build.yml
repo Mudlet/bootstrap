@@ -1,7 +1,9 @@
 name: Build MudletBootstrap
 on:
   push:
-    branches: [master]
+    branches: [master, development]
+    tags:
+      - 'v*' # Add tag trigger for releases
   pull_request:
   workflow_dispatch:
 
@@ -13,7 +15,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-24.04
+          - os: ubuntu-22.04
             buildname: 'Linux'
             triplet: x64-linux
             compiler: clang_64
@@ -40,9 +42,9 @@ jobs:
         dir: ${{runner.workspace}}
         cache: true
 
-    - name: Use CMake 3.30.3
+    - name: (Linux, macOS) Use CMake 4.1.0
       if: runner.os == 'Linux' || runner.os == 'macOS'
-      uses: lukka/get-cmake@v4.1.0
+      uses: lukka/get-cmake@v4.1.1
 
     - name: (macOS) Install dependencies
       if: runner.os == 'macOS'
@@ -80,6 +82,13 @@ jobs:
 
         echo "CCACHE_DIR=${{runner.workspace}}/ccache" >> $GITHUB_ENV
 
+    - name: (Linux, macOS) Build Qt StateMachine Module
+      if: runner.os == 'Linux' || runner.os == 'macOS'
+      run: |
+        # Make the build script executable and run it
+        chmod +x ./CI/build-qt-statemachine.sh
+        ./CI/build-qt-statemachine.sh
+
     - name: (Windows) Setup MSYS2
       if: runner.os == 'Windows'
       uses: msys2/setup-msys2@v2
@@ -103,12 +112,12 @@ jobs:
         key: qt
 
     - name: (Windows) Compile Qt
-      if: runner.os == 'Windows'&& steps.restore-qt.outputs.cache-hit != 'true'
+      if: runner.os == 'Windows' && steps.restore-qt.outputs.cache-hit != 'true'
       shell: msys2 {0}
       run: $GITHUB_WORKSPACE/CI/compile-qt-win.sh
 
     - name: (Windows) Save Qt cache
-      if: runner.os == 'Windows'&& steps.restore-qt.outputs.cache-hit != 'true'
+      if: runner.os == 'Windows' && steps.restore-qt.outputs.cache-hit != 'true'
       uses: actions/cache/save@v4
       with:
         path: ${{env.QT_ROOT}}
@@ -157,13 +166,13 @@ jobs:
 
     - name: (Windows) Login to Azure
       uses: azure/login@v2
-      if: runner.os == 'Windows' && github.actor != 'dependabot[bot]'
+      if: runner.os == 'Windows' && github.actor != 'dependabot[bot]' && github.event_name != 'pull_request' && github.repository == 'Mudlet/Mudlet'
       with:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
 
     - name: Get Azure access token for code signing
       shell: pwsh
-      if: runner.os == 'Windows' && github.actor != 'dependabot[bot]'
+      if: runner.os == 'Windows' && github.actor != 'dependabot[bot]' && github.event_name != 'pull_request' && github.repository == 'Mudlet/Mudlet'
       run: |
         $token = (az account get-access-token --resource https://codesigning.azure.net | ConvertFrom-Json).accessToken
         "::add-mask::$token"
@@ -202,4 +211,113 @@ jobs:
       with:
         name: ${{env.UPLOAD_FILENAME}}
         path: ${{env.FOLDER_TO_UPLOAD}}
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: compile
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout Source (for GameList.txt)
+      uses: actions/checkout@v5
+    
+    - name: Download all platform artifacts
+      uses: actions/download-artifact@v5
+      with:
+        path: ./platform-artifacts
+    
+    - name: Organize launchers by game
+      run: |
+        chmod +x $GITHUB_WORKSPACE/CI/organize-launchers.sh
+        $GITHUB_WORKSPACE/CI/organize-launchers.sh
+    
+    - name: Generate release body
+      run: |
+        echo "=== Generating release body ==="
+        
+        # Get repository and tag info
+        REPO="${{ github.repository }}"
+        TAG="${{ github.ref_name }}"
+        BASE_URL="https://github.com/$REPO/releases/download/$TAG"
+        
+        echo "Base URL: $BASE_URL"
+
+        # Start building the release body
+        cat > release-body.md << 'EOF'
+        ## MudletBootstrap Release ${{ github.ref_name }}
+        
+        Choose your game below and download the appropriate file for your operating system:
+        
+        EOF
+        
+        # Add each game as a section
+        if [ -d "organized-releases" ]; then
+          for game_dir in organized-releases/*/; do
+            if [ -d "$game_dir" ]; then
+              game_name=$(basename "$game_dir")
+              echo "### $game_name" >> release-body.md
+              echo "" >> release-body.md
+              
+              # Check for each platform
+              windows_file=$(find "$game_dir" -name "*Windows.exe" | head -1)
+              macos_file=$(find "$game_dir" -name "*macOS.dmg" | head -1)
+              linux_file=$(find "$game_dir" -name "*Linux.AppImage.tar" | head -1)
+              
+              if [ -n "$windows_file" ]; then
+                filename=$(basename "$windows_file")
+                echo "- **Windows**: [\`$filename\`]($BASE_URL/$filename)" >> release-body.md
+              fi
+              
+              if [ -n "$macos_file" ]; then
+                filename=$(basename "$macos_file")
+                echo "- **macOS**: [\`$filename\`]($BASE_URL/$filename)" >> release-body.md
+              fi
+              
+              if [ -n "$linux_file" ]; then
+                filename=$(basename "$linux_file")
+                echo "- **Linux**: [\`$filename\`]($BASE_URL/$filename)" >> release-body.md
+              fi
+              
+              echo "" >> release-body.md
+            fi
+          done
+        fi
+        
+        # Add installation instructions
+        cat >> release-body.md << 'EOF'
+        ## Installation Instructions
+        
+        ### Windows
+        1. Download the `.exe` file for your game
+        2. Run MudletBootstrap - it'll download & install Mudlet for you
+        3. You can delete MudletBootstrap after - Mudlet is all set up to play your favourite game.
+        
+        ### macOS
+        1. Download the `.dmg` file for your game
+        2. Open the DMG file
+        3. Runt he MudletBootstrap app from within the mounted DMG
+        
+        ### Linux
+        1. Download the `.AppImage.tar` file for your game
+        2. Extract it: `tar -xf MudletBootstrap-[game]-Linux.AppImage.tar`
+        2. Extract and run the AppImage within: `MudletBootstrap-[game].AppImage`
+        3. You can delete MudletBootstrap after - Mudlet is all set up to play your favourite 
+        EOF
+        
+        echo "Generated release body:"
+        cat release-body.md
+
+    - name: Create Release with Game Organization
+      uses: softprops/action-gh-release@v2
+      with:
+        files: organized-releases/**/*
+        tag_name: ${{ github.ref_name }}
+        name: MudletBootstrap ${{ github.ref_name }}
+        body_path: release-body.md
+        draft: false
+        prerelease: false
+        generate_release_notes: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 

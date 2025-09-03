@@ -101,6 +101,16 @@ npm install -g appdmg
 
 mkdir -p "${GITHUB_WORKSPACE}/upload/"
 
+# Check if this is a tagged release
+IS_RELEASE=false
+if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+  IS_RELEASE=true
+  echo "=== Building for RELEASE ==="
+  mkdir -p "${GITHUB_WORKSPACE}/extracted-games"
+else
+  echo "=== Building for regular build ==="
+fi
+
 while IFS= read -r line || [[ -n "$line" ]]; do
   gameName=$(echo "$line" | tr -cd '[:alnum:]_-')
   appBaseName="MudletBootstrap"
@@ -180,7 +190,20 @@ while IFS= read -r line || [[ -n "$line" ]]; do
 
   mv "${HOME}/Desktop/${appBaseName}.dmg" "${GITHUB_WORKSPACE}/upload/${appBaseName}-${gameName}.dmg"
 
+  # If this is a release, also copy to extracted-games with standardized naming
+  if [ "$IS_RELEASE" = true ]; then
+    echo "Creating release version for $gameName"
+    mkdir -p "${GITHUB_WORKSPACE}/extracted-games/$gameName"
+    cp "${GITHUB_WORKSPACE}/upload/${appBaseName}-${gameName}.dmg" \
+       "${GITHUB_WORKSPACE}/extracted-games/$gameName/MudletBootstrap-$gameName-macOS.dmg"
+  fi
+
 done < "${GITHUB_WORKSPACE}/GameList.txt"
+
+if [ "$IS_RELEASE" = true ]; then
+  echo "=== Release files created ==="
+  find "${GITHUB_WORKSPACE}/extracted-games" -type f | sort
+fi
 
 {
     echo "FOLDER_TO_UPLOAD=${GITHUB_WORKSPACE}/upload"

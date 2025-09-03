@@ -58,6 +58,16 @@ if [[ ! -d "$uploadDirUnix" ]]; then
   mkdir -p "$uploadDirUnix"
 fi
 
+# Check if this is a tagged release
+IS_RELEASE=false
+if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+  IS_RELEASE=true
+  echo "=== Building for RELEASE ==="
+  mkdir -p "${GITHUB_WORKSPACE_UNIX_PATH}/extracted-games"
+else
+  echo "=== Building for regular build ==="
+fi
+
 # Set up Java for code signing if Azure token is available
 if [ -n "${AZURE_ACCESS_TOKEN}" ]; then
   echo "=== Setting up Java 21 for signing ==="
@@ -102,9 +112,22 @@ while IFS= read -r line || [[ -n "$line" ]]; do
   #rsync -avR "${PACKAGE_DIR}"/./* "$uploadDirUnix"
   cp -r "${PACKAGE_DIR}/"* "$uploadDirUnix"
 
+  # If this is a release, also copy to extracted-games with standardized naming
+  if [ "$IS_RELEASE" = true ]; then
+    echo "Creating release version for $gameName"
+    mkdir -p "${GITHUB_WORKSPACE_UNIX_PATH}/extracted-games/$gameName"
+    cp "${PACKAGE_DIR}/MudletBootstrap-${gameName}.exe" \
+       "${GITHUB_WORKSPACE_UNIX_PATH}/extracted-games/$gameName/MudletBootstrap-$gameName-Windows.exe"
+  fi
+
   cd "$GITHUB_WORKSPACE" || exit 1
 
 done < "${GITHUB_WORKSPACE}/GameList.txt"
+
+if [ "$IS_RELEASE" = true ]; then
+  echo "=== Release files created ==="
+  find "${GITHUB_WORKSPACE_UNIX_PATH}/extracted-games" -type f | sort
+fi
 
 # Append these variables to the GITHUB_ENV to make them available in subsequent steps
 {

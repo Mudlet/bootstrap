@@ -25,6 +25,16 @@ fi
 
 mkdir "${GITHUB_WORKSPACE}/upload/"
 
+# Check if this is a tagged release
+IS_RELEASE=false
+if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+  IS_RELEASE=true
+  echo "=== Building for RELEASE ==="
+  mkdir -p "${GITHUB_WORKSPACE}/extracted-games"
+else
+  echo "=== Building for regular build ==="
+fi
+
 echo "Working in directory:"
 pwd
 
@@ -67,6 +77,14 @@ while IFS= read -r line || [[ -n "$line" ]]; do
 
   mv "MudletBootstrap-linux-x64.AppImage.tar" "${GITHUB_WORKSPACE}/upload/MudletBootstrap-linux-x64-${gameName}.AppImage.tar"
 
+  # If this is a release, also copy to extracted-games with standardized naming
+  if [ "$IS_RELEASE" = true ]; then
+    echo "Creating release version for $gameName"
+    mkdir -p "${GITHUB_WORKSPACE}/extracted-games/$gameName"
+    cp "${GITHUB_WORKSPACE}/upload/MudletBootstrap-linux-x64-${gameName}.AppImage.tar" \
+       "${GITHUB_WORKSPACE}/extracted-games/$gameName/MudletBootstrap-$gameName-Linux.AppImage.tar"
+  fi
+
   rm -rf app/
 done < "${GITHUB_WORKSPACE}/GameList.txt"
 
@@ -74,6 +92,11 @@ echo "=== ... later, via Github ==="
 # Move the finished file into a folder of its own, because we ask Github to upload contents of a folder
 
 ls ${GITHUB_WORKSPACE}/upload
+
+if [ "$IS_RELEASE" = true ]; then
+  echo "=== Release files created ==="
+  find "${GITHUB_WORKSPACE}/extracted-games" -type f | sort
+fi
 
 {
   echo "FOLDER_TO_UPLOAD=${GITHUB_WORKSPACE}/upload"
