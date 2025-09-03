@@ -120,6 +120,12 @@ MudletBootstrap::MudletBootstrap(QObject *parent) :
     currentReply(nullptr),
     m_stateMachine(nullptr) {
 
+    // Read game name from launch profile
+    gameName = readLaunchProfileFromResource();
+    if (gameName.isEmpty()) {
+        gameName = "your game";  // fallback if no game name is found
+    }
+
     progressWindow = new QWidget;
     progressWindow->setWindowTitle("Downloading...");
     progressWindow->resize(400, 150);
@@ -350,7 +356,7 @@ void MudletBootstrap::startDownload() {
     connect(currentReply, &QNetworkReply::finished, this, &MudletBootstrap::onDownloadFinished);
     connect(currentReply, &QNetworkReply::errorOccurred, this, &MudletBootstrap::onDownloadError);
 
-    statusLabel->setText(QString("Downloading %1...").arg(info.appName));
+    statusLabel->setText(QString("Downloading Mudlet for %1...").arg(gameName));
 }
 
 void MudletBootstrap::onDownloadProgress(qint64 bytesReceived, qint64 bytesTotal) {
@@ -358,8 +364,8 @@ void MudletBootstrap::onDownloadProgress(qint64 bytesReceived, qint64 bytesTotal
         int progress = static_cast<int>((bytesReceived * 100) / bytesTotal);
         progressBar->setValue(progress);
     }
-    statusLabel->setText(QString("Downloading %1... %2 / %3 MB")
-        .arg(info.appName)
+    statusLabel->setText(QString("Downloading Mudlet for %1... %2 / %3 MB")
+        .arg(gameName)
         .arg(bytesReceived/1048576.0, 0, 'f', 2)
         .arg(bytesTotal/1048576.0, 0, 'f', 2));
 }
