@@ -66,6 +66,7 @@ private:
     int retryCount;
     qint64 bytesAlreadyDownloaded;
     static const int MAX_RETRIES = 3;
+    QString gameName;
 
     QStateMachine *m_stateMachine;
     QState *m_downloadFeedState;

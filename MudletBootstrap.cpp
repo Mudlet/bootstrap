@@ -17,6 +17,7 @@
 #include <QMap>
 #include <QStandardPaths>
 #include <QTimer>
+#include <QVersionNumber>
 
 QMap<QString, QString> getPlatformFeedMap(const QString &type) {
 
@@ -122,6 +123,12 @@ MudletBootstrap::MudletBootstrap(QObject *parent) :
     m_stateMachine(nullptr),
     retryCount(0),
     bytesAlreadyDownloaded(0) {
+
+    // Read game name from launch profile
+    gameName = readLaunchProfileFromResource();
+    if (gameName.isEmpty()) {
+        gameName = "your game";  // fallback if no game name is found
+    }
 
     progressWindow = new QWidget;
     progressWindow->setWindowTitle("Downloading...");
@@ -372,11 +379,7 @@ void MudletBootstrap::startDownload() {
             .arg(retryCount + 1)
             .arg(MAX_RETRIES + 1));
     } else {
-        qDebug() << "Starting fresh download";
-        statusLabel->setText(QString("Downloading %1... (attempt %2/%3)")
-            .arg(info.appName)
-            .arg(retryCount + 1)
-            .arg(MAX_RETRIES + 1));
+        statusLabel->setText(QString("Downloading Mudlet for %1...").arg(gameName));
     }
     
     currentReply = networkManager.get(request);
@@ -384,17 +387,20 @@ void MudletBootstrap::startDownload() {
     connect(currentReply, &QNetworkReply::downloadProgress, this, &MudletBootstrap::onDownloadProgress);
     connect(currentReply, &QNetworkReply::finished, this, &MudletBootstrap::onDownloadFinished);
     connect(currentReply, &QNetworkReply::errorOccurred, this, &MudletBootstrap::onDownloadError);
+
 }
 
 void MudletBootstrap::onDownloadProgress(qint64 bytesReceived, qint64 bytesTotal) {
     if (bytesTotal > 0) {
         int progress = static_cast<int>((bytesReceived * 100) / bytesTotal);
         progressBar->setValue(progress);
+        
+        // Set MB progress text on the progress bar
+        progressBar->setFormat(QString("%1 / %2 MB")
+            .arg(bytesReceived/1048576.0, 0, 'f', 2)
+            .arg(bytesTotal/1048576.0, 0, 'f', 2));
     }
-    statusLabel->setText(QString("Downloading %1... %2 / %3 MB")
-        .arg(info.appName)
-        .arg(bytesReceived/1048576.0, 0, 'f', 2)
-        .arg(bytesTotal/1048576.0, 0, 'f', 2));
+    statusLabel->setText(QString("Downloading Mudlet for %1...");
 }
 
 
@@ -643,8 +649,11 @@ bool installAndRunAppImage(QProcessEnvironment &env, const QString& tarFilePath)
 
 /**
  * @brief Platform agnostic install steps.
- * Sets up MUDLET_PROFILES env variable from launch.ini, runs the platform specific
- * installer. Emits corresponding installComplete or errorOccurred state signal.
+ * - Sets up MUDLET_PROFILES env variable from launch.ini
+ * - Installs autologin file for the wanted profile in users home/.config/Mudlet/<profile>
+ * - runs the platform specific installer.
+ * 
+ * Emits corresponding installComplete or errorOccurred state signal.
  * 
  */
 void MudletBootstrap::installApplication() {
@@ -660,6 +669,43 @@ void MudletBootstrap::installApplication() {
     } else {
         // Pass along the launch profile to the environment
         env.insert("MUDLET_PROFILES", launchProfile);
+    }
+
+    // Create autologin file for the wanted profile
+    QString confDirDefault = QDir::homePath() + 
+        QDir::separator() + ".config" +
+        QDir::separator() + "mudlet" +
+        QDir::separator() + "profiles" + 
+        QDir::separator() + launchProfile;
+    QDir configDir;
+    if (!configDir.mkpath(confDirDefault)) {
+        qDebug() << "Failed to create config directory:" << confDirDefault;
+    } else {
+        // Create the autologin file
+        QString autologinFilePath = confDirDefault + QDir::separator() + "autologin";
+        QFile autologinFile(autologinFilePath);
+
+        // A constant equivalent to QDataStream::Qt_5_12 needed in several places
+        // which can't be pulled from Qt as it is not going to be defined for older
+        // versions:
+        static const int scmQDataStreamFormat_5_12 = 18;
+
+        if (autologinFile.open(QIODevice::WriteOnly)) {
+            QDataStream out(&autologinFile);
+            
+            // Set the same data stream version that Mudlet uses for reading
+            if (QVersionNumber::fromString(qVersion()) >= QVersionNumber(5, 13, 0)) {
+                out.setVersion(scmQDataStreamFormat_5_12);
+            }
+
+            QString autologinData = QString::number(Qt::Checked);
+            out << autologinData;
+            
+            autologinFile.close();
+            qDebug() << "Autologin file created successfully:" << autologinFilePath;
+        } else {
+            qWarning() << "Failed to create autologin file:" << autologinFilePath << autologinFile.errorString();
+        }
     }
 
     statusLabel->setText(QString("Installing %1").arg(info.appName));
