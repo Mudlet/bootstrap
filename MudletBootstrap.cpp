@@ -364,11 +364,13 @@ void MudletBootstrap::onDownloadProgress(qint64 bytesReceived, qint64 bytesTotal
     if (bytesTotal > 0) {
         int progress = static_cast<int>((bytesReceived * 100) / bytesTotal);
         progressBar->setValue(progress);
+        
+        // Set MB progress text on the progress bar
+        progressBar->setFormat(QString("%1 / %2 MB")
+            .arg(bytesReceived/1048576.0, 0, 'f', 2)
+            .arg(bytesTotal/1048576.0, 0, 'f', 2));
     }
-    statusLabel->setText(QString("Downloading Mudlet for %1... %2 / %3 MB")
-        .arg(gameName)
-        .arg(bytesReceived/1048576.0, 0, 'f', 2)
-        .arg(bytesTotal/1048576.0, 0, 'f', 2));
+    statusLabel->setText(QString("Downloading Mudlet for %1...");
 }
 
 
