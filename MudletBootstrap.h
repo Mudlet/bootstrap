@@ -62,6 +62,7 @@ private:
     QString outputFile;
 
     DownloadInfo info;
+    QString gameName;
 
     QStateMachine *m_stateMachine;
     QState *m_downloadFeedState;
