@@ -3,28 +3,35 @@
 set -e
 
 sign_and_notarize () {
-
   local appBundle="$1"
   codesign --deep -o runtime -s "$IDENTITY" "${appBundle}"
   echo "Signed final .dmg"
 
-  cat << EOF > gon.json
-{
-  "notarize": [{
-    "path": "${appBundle}",
-    "bundle_id": "mudletbootstrap",
-    "staple": true
-  }]
-}
-EOF
-
   for i in {1..3}; do
     echo "Trying to notarize (attempt ${i})"
-    if gon gon.json; then
+    if xcrun notarytool submit "${appBundle}" --apple-id "$APPLE_USERNAME" --password "$APPLE_PASSWORD" --team-id "$APPLE_TEAM_ID" --wait; then
+      break
+    fi
+  done
+}
+
+sign_app_bundle () {
+  local appBundle="$1"
+  echo "Signing app bundle: ${appBundle}"
+  codesign -s "$IDENTITY" -o runtime --timestamp "${appBundle}"
+  echo "Successfully signed app bundle"
+
+  echo "Notarizing app bundle"
+  for i in {1..3}; do
+    echo "Trying to notarize app bundle (attempt ${i})"
+    if xcrun notarytool submit "${appBundle}" --apple-id "$APPLE_USERNAME" --password "$APPLE_PASSWORD" --team-id "$APPLE_TEAM_ID" --wait; then
+      echo "Successfully notarized app bundle"
       break
     fi
   done
 
+  echo "Stapling notarization ticket to app bundle"
+  xcrun stapler staple "${appBundle}"
 }
 
 
@@ -39,20 +46,20 @@ YESTERDAY_DATE=$(date -v-1d '+%F' | tr -d '-')
 
 #cd "${BUILD_DIR}/../installers/osx"
 
-# setup macOS keychain for code signing on ptb/release builds.
-#if [ -n "$MACOS_SIGNING_PASS" ]; then
-#    KEYCHAIN=build.keychain
-#    security create-keychain -p travis $KEYCHAIN
-#    security default-keychain -s $KEYCHAIN
-#    security unlock-keychain -p travis $KEYCHAIN
-#    security set-keychain-settings -t 3600 -u $KEYCHAIN
-#    security import Certificates.p12 -k $KEYCHAIN -P "$MACOS_SIGNING_PASS" -T /usr/bin/codesign
-#    security set-key-partition-list -S apple-tool:,apple: -s -k travis $KEYCHAIN
-#    export IDENTITY="Developer ID Application"
-#    echo "Imported identity:"
-#    security find-identity
-#    echo "----"
-#fi
+# setup macOS keychain for code signing
+if [ -n "$MACOS_SIGNING_PASS" ]; then
+    KEYCHAIN=build.keychain
+    security create-keychain -p travis $KEYCHAIN
+    security default-keychain -s $KEYCHAIN
+    security unlock-keychain -p travis $KEYCHAIN
+    security set-keychain-settings -t 3600 -u $KEYCHAIN
+    security import "${GITHUB_WORKSPACE}/Certificates.p12" -k $KEYCHAIN -P "$MACOS_SIGNING_PASS" -T /usr/bin/codesign
+    security set-key-partition-list -S apple-tool:,apple: -s -k travis $KEYCHAIN
+    export IDENTITY="Developer ID Application"
+    echo "Imported identity:"
+    security find-identity
+    echo "----"
+fi
 
 
 #if [ -n "${GITHUB_REPOSITORY}" ]; then
@@ -145,6 +152,13 @@ while IFS= read -r line || [[ -n "$line" ]]; do
   /usr/libexec/PlistBuddy -c "Add CFBundleShortVersionString string ${shortVersion}" "${app}/Contents/Info.plist" || true
   /usr/libexec/PlistBuddy -c "Add CFBundleVersion string ${version}" "${app}/Contents/Info.plist" || true
 
+  # Sign the app bundle if signing is configured
+  if [ -n "$IDENTITY" ] && security find-identity | grep -q "$IDENTITY"; then
+    echo "Signing app bundle: ${app}"
+    codesign --deep --force -o runtime --sign "$IDENTITY" "${app}"
+    echo "Successfully signed app bundle"
+  fi
+
   # Generate final .dmg
   cd ../../
   rm -f ~/Desktop/[mM]udletBootstrap-${gameName}*.dmg
@@ -198,7 +212,7 @@ fi
 DEPLOY_URL="Github artifact, see https://github.com/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
 
 # delete keychain just in case
-if [ ! -z "$MACOS_SIGNING_PASS" ]; then
+if [ -n "$MACOS_SIGNING_PASS" ] && [ -n "$KEYCHAIN" ]; then
     security delete-keychain $KEYCHAIN
 fi
 
