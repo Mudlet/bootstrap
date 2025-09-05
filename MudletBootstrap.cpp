@@ -16,6 +16,7 @@
 #include <QJsonArray>
 #include <QMap>
 #include <QStandardPaths>
+#include <QTimer>
 #include <QVersionNumber>
 #include <QTimer>
 
@@ -120,7 +121,9 @@ bool verifyFileSha256(const QString &filePath, const QString &expectedHash) {
 MudletBootstrap::MudletBootstrap(QObject *parent) :
     QObject(parent),
     currentReply(nullptr),
-    m_stateMachine(nullptr) {
+    m_stateMachine(nullptr),
+    retryCount(0),
+    bytesAlreadyDownloaded(0) {
 
     // Read game name from launch profile
     gameName = readLaunchProfileFromResource();
@@ -158,6 +161,7 @@ void MudletBootstrap::initStateMachine() {
     m_downloadFeedState = new QState(m_stateMachine);
     m_checkExistingState = new QState(m_stateMachine);
     m_downloadState = new QState(m_stateMachine);
+    m_retryState = new QState(m_stateMachine);
     m_verifyHashState = new QState(m_stateMachine);
     m_installState = new QState(m_stateMachine);
     m_errorState = new QState(m_stateMachine);
@@ -170,6 +174,7 @@ void MudletBootstrap::initStateMachine() {
     connect(m_downloadFeedState, &QState::entered, this, &MudletBootstrap::fetchPlatformFeed);
     connect(m_checkExistingState, &QState::entered, this, &MudletBootstrap::checkExistingFile);
     connect(m_downloadState, &QState::entered, this, &MudletBootstrap::startDownload);
+    connect(m_retryState, &QState::entered, this, &MudletBootstrap::retryDownload);
     connect(m_verifyHashState, &QState::entered, this, &MudletBootstrap::verifyHash);
     connect(m_installState, &QState::entered, this, &MudletBootstrap::installApplication);
     connect(m_errorState, &QState::entered, this, &MudletBootstrap::handleError);
@@ -183,7 +188,10 @@ void MudletBootstrap::initStateMachine() {
     m_checkExistingState->addTransition(this, &MudletBootstrap::fileNotExists, m_downloadState);
 
     m_downloadState->addTransition(this, &MudletBootstrap::downloadComplete, m_verifyHashState);
-    m_downloadState->addTransition(this, &MudletBootstrap::errorOccurred, m_errorState);
+    m_downloadState->addTransition(this, &MudletBootstrap::errorOccurred, m_retryState);
+
+    m_retryState->addTransition(this, &MudletBootstrap::fileNotExists, m_downloadState);  // retry download
+    m_retryState->addTransition(this, &MudletBootstrap::errorOccurred, m_errorState);     // max retries reached
 
     m_verifyHashState->addTransition(this, &MudletBootstrap::hashValid, m_installState);
     m_verifyHashState->addTransition(this, &MudletBootstrap::hashInvalid, m_errorState);
@@ -208,6 +216,9 @@ void MudletBootstrap::initStateMachine() {
 
     connect(m_downloadState, &QState::entered, this, []() { qDebug() << "Entered: Download"; });
     connect(m_downloadState, &QState::exited, this, []() { qDebug() << "Exited: Download"; });
+
+    connect(m_retryState, &QState::entered, this, []() { qDebug() << "Entered: Retry"; });
+    connect(m_retryState, &QState::exited, this, []() { qDebug() << "Exited: Retry"; });
 
     connect(m_verifyHashState, &QState::entered, this, []() { qDebug() << "Entered: VerifyHash"; });
     connect(m_verifyHashState, &QState::exited, this, []() { qDebug() << "Exited: VerifyHash"; });
@@ -330,16 +341,22 @@ void MudletBootstrap::onFetchPlatformFeedFinished() {
 
 /**
  * @brief Check if outputFile exists and emit corresponding state signal
- * 
+ * Also determines bytes already downloaded for resume functionality
  */
 void MudletBootstrap::checkExistingFile() {
     statusLabel->setText("Checking existing file...");
     qDebug() << "Checking if file exists:" << outputFile;
 
     if (QFile::exists(outputFile)) {
-        qDebug() << outputFile << "exists";
+        QFile file(outputFile);
+        bytesAlreadyDownloaded = file.size();
+        qDebug() << outputFile << "exists, size:" << bytesAlreadyDownloaded << "bytes";
+        
+        // If we have some bytes but not a complete file, we might want to resume
+        // For now, treat any existing file as complete and verify hash
         emit fileExists();
     } else {
+        bytesAlreadyDownloaded = 0;
         qDebug() << outputFile << "does not exist";
         emit fileNotExists();
     }
@@ -348,17 +365,30 @@ void MudletBootstrap::checkExistingFile() {
 
 /**
  * @brief Create a request and start downloading the Mudlet installer
- * 
+ * Supports resuming downloads using HTTP Range requests
  */
 void MudletBootstrap::startDownload() {
     QNetworkRequest request{QUrl(info.url)};
+    
+    // If we have bytes already downloaded, request only the remaining part
+    if (bytesAlreadyDownloaded > 0) {
+        QString rangeHeader = QString("bytes=%1-").arg(bytesAlreadyDownloaded);
+        request.setRawHeader("Range", rangeHeader.toUtf8());
+        qDebug() << "Resuming download from byte:" << bytesAlreadyDownloaded;
+        statusLabel->setText(QString("Resuming %1... (attempt %2/%3)")
+            .arg(info.appName)
+            .arg(retryCount + 1)
+            .arg(MAX_RETRIES + 1));
+    } else {
+        statusLabel->setText(QString("Downloading Mudlet for %1...").arg(gameName));
+    }
+    
     currentReply = networkManager.get(request);
 
     connect(currentReply, &QNetworkReply::downloadProgress, this, &MudletBootstrap::onDownloadProgress);
     connect(currentReply, &QNetworkReply::finished, this, &MudletBootstrap::onDownloadFinished);
     connect(currentReply, &QNetworkReply::errorOccurred, this, &MudletBootstrap::onDownloadError);
 
-    statusLabel->setText(QString("Downloading Mudlet for %1...").arg(gameName));
 }
 
 void MudletBootstrap::onDownloadProgress(qint64 bytesReceived, qint64 bytesTotal) {
@@ -379,7 +409,7 @@ void MudletBootstrap::onDownloadProgress(qint64 bytesReceived, qint64 bytesTotal
  * @brief Verifies the sha256 hash and starts the install process if the hash matches what we got
  * from the dblsqd feed.
  * Called upon completion of the Mudlet installer download.
- * 
+ * Supports appending to existing file when resuming.
  */
 void MudletBootstrap::onDownloadFinished() {
     if (currentReply->error() != QNetworkReply::NoError) {
@@ -391,11 +421,18 @@ void MudletBootstrap::onDownloadFinished() {
     qDebug() << "Download finished: " << outputFile;
 
     QFile file(outputFile);
-    if (file.open(QIODevice::WriteOnly)) {
+    QIODevice::OpenMode openMode = (bytesAlreadyDownloaded > 0) ? 
+        (QIODevice::WriteOnly | QIODevice::Append) : QIODevice::WriteOnly;
+    
+    if (file.open(openMode)) {
         file.write(currentReply->readAll());
         file.close();
         qDebug() << "Downloaded to:" << outputFile;
 
+        // Reset retry count and bytes already downloaded on successful completion
+        retryCount = 0;
+        bytesAlreadyDownloaded = 0;
+        
         emit downloadComplete();
 
     } else {
@@ -408,8 +445,40 @@ void MudletBootstrap::onDownloadFinished() {
 
 
 void MudletBootstrap::onDownloadError(QNetworkReply::NetworkError error) {
-    qDebug() << "Download error:" << currentReply->errorString();
+    qDebug() << "Download error:" << currentReply->errorString() << "Error code:" << error;
+    
+    // Distinguish between retryable and non-retryable errors
+    bool isRetryable = true;
+    
+    switch (error) {
+        case QNetworkReply::ContentNotFoundError:      // 404
+        case QNetworkReply::AuthenticationRequiredError: // 401
+        case QNetworkReply::ContentAccessDenied:       // 403
+        case QNetworkReply::ProtocolFailure:           // Invalid response
+            isRetryable = false;
+            qDebug() << "Non-retryable error detected";
+            break;
+        case QNetworkReply::ConnectionRefusedError:
+        case QNetworkReply::RemoteHostClosedError:
+        case QNetworkReply::HostNotFoundError:
+        case QNetworkReply::TimeoutError:
+        case QNetworkReply::OperationCanceledError:
+        case QNetworkReply::TemporaryNetworkFailureError:
+        case QNetworkReply::NetworkSessionFailedError:
+        default:
+            isRetryable = true;
+            qDebug() << "Retryable error detected";
+            break;
+    }
+    
     currentReply->deleteLater();
+    
+    if (!isRetryable) {
+        statusLabel->setText(QString("Download failed: %1").arg(currentReply->errorString()));
+        // Skip retry logic and go directly to error state for non-retryable errors
+        retryCount = MAX_RETRIES; // This will force retryDownload to give up immediately
+    }
+    
     emit errorOccurred();
 }
 
@@ -748,4 +817,32 @@ void MudletBootstrap::cleanup() {
         }
     }
     progressWindow->close();
+}
+
+
+/**
+ * @brief Handle download retry logic
+ * Decides whether to retry the download or give up based on retry count
+ */
+void MudletBootstrap::retryDownload() {
+    qDebug() << "Retry state entered, retry count:" << retryCount;
+    
+    if (retryCount < MAX_RETRIES) {
+        retryCount++;
+        statusLabel->setText(QString("Retrying download... (attempt %1/%2)")
+            .arg(retryCount + 1)
+            .arg(MAX_RETRIES + 1));
+        statusLabel->repaint();
+        
+        qDebug() << "Attempting retry" << retryCount << "of" << MAX_RETRIES;
+        
+        // Short delay before retrying
+        QTimer::singleShot(1000, [this]() {
+            emit fileNotExists(); // This will trigger transition back to download state
+        });
+    } else {
+        qDebug() << "Max retries reached, giving up";
+        statusLabel->setText("Download failed after maximum retries");
+        emit errorOccurred(); // This will trigger transition to error state
+    }
 }

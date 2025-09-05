@@ -36,6 +36,7 @@ private slots:
     void installApplication();
     void handleError();
     void cleanup();
+    void retryDownload();
 
 signals:
     void feedFetched();
@@ -62,12 +63,16 @@ private:
     QString outputFile;
 
     DownloadInfo info;
+    int retryCount;
+    qint64 bytesAlreadyDownloaded;
+    static const int MAX_RETRIES = 3;
     QString gameName;
 
     QStateMachine *m_stateMachine;
     QState *m_downloadFeedState;
     QState *m_checkExistingState;
     QState *m_downloadState;
+    QState *m_retryState;
     QState *m_verifyHashState;
     QState *m_installState;
     QState *m_errorState;
