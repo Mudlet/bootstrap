@@ -513,7 +513,7 @@ void MudletBootstrap::verifyHash() {
  * @return true If Mudlet was downloaded and installed
  * @return false If any errors during this process
  */
-bool installAndRunExe(QProcessEnvironment &env, const QString& exeFilePath, bool &shortcutCreated) {
+bool installAndRunExe(QProcessEnvironment &env, const QString& exeFilePath, QString& gameName, bool &shortcutCreated) {
 
     QProcess process;
 
@@ -761,7 +761,7 @@ void MudletBootstrap::installApplication() {
     // Install the application
 #if defined(Q_OS_WIN)
     bool shortcutCreated = false;
-    installSuccess = installAndRunExe(env, outputFile, shortcutCreated);
+    installSuccess = installAndRunExe(env, outputFile, gameName, shortcutCreated);
 #elif defined(Q_OS_MAC)
     installSuccess = installAndRunDmg(env, outputFile);
 #elif defined(Q_OS_LINUX)
