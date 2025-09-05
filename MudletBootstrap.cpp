@@ -370,7 +370,7 @@ void MudletBootstrap::onDownloadProgress(qint64 bytesReceived, qint64 bytesTotal
             .arg(bytesReceived/1048576.0, 0, 'f', 2)
             .arg(bytesTotal/1048576.0, 0, 'f', 2));
     }
-    statusLabel->setText(QString("Downloading Mudlet for %1...");
+    statusLabel->setText(QString("Downloading Mudlet for %1..."));
 }
 
 
