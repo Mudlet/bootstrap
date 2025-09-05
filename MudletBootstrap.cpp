@@ -761,7 +761,7 @@ void MudletBootstrap::installApplication() {
     // Install the application
 #if defined(Q_OS_WIN)
     bool shortcutCreated = false;
-    installSuccess = installAndRunExe(env, outputFile, gameName, shortcutCreated);
+    installSuccess = installAndRunExe(env, outputFile, launchProfile, shortcutCreated);
 #elif defined(Q_OS_MAC)
     installSuccess = installAndRunDmg(env, outputFile);
 #elif defined(Q_OS_LINUX)
