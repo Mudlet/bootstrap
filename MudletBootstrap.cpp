@@ -17,6 +17,7 @@
 #include <QMap>
 #include <QStandardPaths>
 #include <QVersionNumber>
+#include <QTimer>
 
 QMap<QString, QString> getPlatformFeedMap(const QString &type) {
 
@@ -370,7 +371,7 @@ void MudletBootstrap::onDownloadProgress(qint64 bytesReceived, qint64 bytesTotal
             .arg(bytesReceived/1048576.0, 0, 'f', 2)
             .arg(bytesTotal/1048576.0, 0, 'f', 2));
     }
-    statusLabel->setText(QString("Downloading Mudlet for %1...");
+    statusLabel->setText(QString("Downloading Mudlet for %1...").arg(gameName));
 }
 
 
@@ -431,6 +432,52 @@ void MudletBootstrap::verifyHash() {
         qDebug() << "Checksum verification succeeded.";
         emit hashValid();
     }
+}
+
+
+/**
+ * @brief Windows install process
+ * 
+ * @param env 
+ * @param exeFilePath
+ * @param shortcutCreated
+ * @return true If Mudlet was downloaded and installed
+ * @return false If any errors during this process
+ */
+bool installAndRunExe(QProcessEnvironment &env, const QString& exeFilePath, bool &shortcutCreated) {
+
+    QProcess process;
+
+    process.setProcessEnvironment(env);
+    process.start("cmd.exe", {"/C", exeFilePath});
+    bool success = process.waitForFinished();
+
+    if (!success) {
+        return false;
+    }
+
+    QString desktopPath = QStandardPaths::writableLocation(QStandardPaths::DesktopLocation);
+    QString originalShortcut = QDir(desktopPath).absoluteFilePath("Mudlet.lnk");
+    QString newShortcut = QDir(desktopPath).absoluteFilePath(QString("%1.lnk").arg(gameName));
+    
+    // Check if original exists
+    if (!QFile::exists(originalShortcut)) {
+        qDebug() << "Original Mudlet shortcut not found";
+        return true;
+    }
+    
+    // Don't copy if it already exists
+    if (!QFile::exists(newShortcut)) {
+        // Copy the shortcut
+        shortcutCreated = QFile::copy(originalShortcut, newShortcut);
+        if (shortcutCreated) {
+            qDebug() << "Created game shortcut:" << newShortcut;
+        } else {
+            qDebug() << "Failed to create game shortcut";
+        }
+    }
+
+    return true;
 }
 
 
@@ -589,8 +636,6 @@ bool installAndRunAppImage(QProcessEnvironment &env, const QString& tarFilePath)
  */
 void MudletBootstrap::installApplication() {
 
-    QProcess installerProcess;
-
     QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
 
     // Read the profile from the .ini file
@@ -646,9 +691,8 @@ void MudletBootstrap::installApplication() {
     
     // Install the application
 #if defined(Q_OS_WIN)
-    installerProcess.setProcessEnvironment(env);
-    installerProcess.start("cmd.exe", {"/C", outputFile});
-    installSuccess = installerProcess.waitForFinished();
+    bool shortcutCreated = false;
+    installSuccess = installAndRunExe(env, outputFile, shortcutCreated);
 #elif defined(Q_OS_MAC)
     installSuccess = installAndRunDmg(env, outputFile);
 #elif defined(Q_OS_LINUX)
@@ -658,10 +702,20 @@ void MudletBootstrap::installApplication() {
     if (!installSuccess) {
         emit errorOccurred();
     } else {
-        statusLabel->setText("Installation Completed");
+        QString labelString = QString("%1 has been installed! You can now delete the MudletBoostrap-%1 app.").arg(launchProfile);
+
+#if defined(Q_OS_WIN)
+        if (shortcutCreated) {
+            labelString += QString("\nYou may use the Mudlet or the %1 desktop icons to play").arg(launchProfile);
+        }
+#endif
+
+        statusLabel->setText(labelString);
         statusLabel->repaint();
-        emit installComplete();
-        progressWindow->close();
+
+        QTimer::singleShot(5000, [this]() {
+            emit installComplete();
+        });
     }
     
 }
