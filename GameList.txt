@@ -1,7 +1,33 @@
-Medievia
-StickMUD
-Achaea
-Lusternia
-Aetolia
+3Kingdoms
+3Scapes
+Aardwolf
 Abandoned Realms
-Avalon
+Accursed Lands
+Achaea
+Aetolia
+Avalon.de
+BatMUD
+BlackMUD
+Carrion Fields
+Cleft of Dimensions
+Clessidra
+CoreMUD
+Fierymud
+God Wars II
+Imperian
+Infinity
+Legends of the Jedi
+Luminari
+Lusternia
+Materia Magica
+Medievia
+Midnight Sun 2
+MorgenGrauen
+Mudren
+Multi-Users in Middle-earth
+Realms of Despair
+Reinos de Leyenda
+Slothmud
+StickMUD
+WoTMUD
+ZombieMUD
