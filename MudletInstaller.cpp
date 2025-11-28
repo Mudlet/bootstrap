@@ -18,7 +18,6 @@
 #include <QStandardPaths>
 #include <QTimer>
 #include <QVersionNumber>
-#include <QTimer>
 
 QMap<QString, QString> getPlatformFeedMap(const QString &type) {
 
@@ -445,11 +444,13 @@ void MudletInstaller::onDownloadFinished() {
 
 
 void MudletInstaller::onDownloadError(QNetworkReply::NetworkError error) {
-    qDebug() << "Download error:" << currentReply->errorString() << "Error code:" << error;
-    
+    // Capture error string before deleteLater to avoid use-after-free
+    QString errorString = currentReply->errorString();
+    qDebug() << "Download error:" << errorString << "Error code:" << error;
+
     // Distinguish between retryable and non-retryable errors
     bool isRetryable = true;
-    
+
     switch (error) {
         case QNetworkReply::ContentNotFoundError:      // 404
         case QNetworkReply::AuthenticationRequiredError: // 401
@@ -470,15 +471,15 @@ void MudletInstaller::onDownloadError(QNetworkReply::NetworkError error) {
             qDebug() << "Retryable error detected";
             break;
     }
-    
+
     currentReply->deleteLater();
-    
+
     if (!isRetryable) {
-        statusLabel->setText(QString("Download failed: %1").arg(currentReply->errorString()));
+        statusLabel->setText(QString("Download failed: %1").arg(errorString));
         // Skip retry logic and go directly to error state for non-retryable errors
         retryCount = MAX_RETRIES; // This will force retryDownload to give up immediately
     }
-    
+
     emit errorOccurred();
 }
 

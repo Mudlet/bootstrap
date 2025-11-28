@@ -123,7 +123,6 @@ while IFS= read -r line || [[ -n "$line" ]]; do
 
   if [ -z "$app" ]; then
     echo "No MudletInstaller app folder to package given."
-    echo "Usage: $pgm <MudletInstaller app folder to package>"
     exit 2
   fi
   find . -iname "${app}" -type d
@@ -161,7 +160,7 @@ while IFS= read -r line || [[ -n "$line" ]]; do
 
   # Generate final .dmg
   cd ../../
-  rm -f ~/Desktop/[mM]udletBootstrap-${gameName}*.dmg
+  rm -f ~/Desktop/[mM]udletInstaller-${gameName}*.dmg
 
   echo "PWD:"
   pwd

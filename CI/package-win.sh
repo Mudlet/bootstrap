@@ -116,8 +116,6 @@ while IFS= read -r line || [[ -n "$line" ]]; do
 
   "${RUNNER_WORKSPACE}/qt-static-install/bin/windeployqt6" ./MudletInstaller.exe
 
-  ZIP_FILE_NAME="MudletInstaller"
-
   # To determine which system libraries have to be copied in it requires
   # continually trying to run the executable on the target type system
   # and adding in the libraries to the same directory and repeating that

@@ -1,5 +1,5 @@
-#ifndef MUDLETDOWNLOADER_H
-#define MUDLETDOWNLOADER_H
+#ifndef MUDLETINSTALLER_H
+#define MUDLETINSTALLER_H
 
 #include <QObject>
 #include <QNetworkAccessManager>
