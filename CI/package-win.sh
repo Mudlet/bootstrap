@@ -102,21 +102,19 @@ while IFS= read -r line || [[ -n "$line" ]]; do
   echo "Copying wanted compiled files from ${GITHUB_WORKSPACE}/build-${gameName} to ${GITHUB_WORKSPACE}/package-${gameName} ..."
   echo ""
 
-  if [ ! -f "${GITHUB_WORKSPACE_UNIX_PATH}/build-${gameName}/MudletBootstrap.exe" ]; then
-    echo "ERROR: no MudletBootstrap executable found - did the previous build"
+  if [ ! -f "${GITHUB_WORKSPACE_UNIX_PATH}/build-${gameName}/MudletInstaller.exe" ]; then
+    echo "ERROR: no MudletInstaller executable found - did the previous build"
     echo "complete sucessfully?"
     exit 6
   fi
 
-  cp "${GITHUB_WORKSPACE_UNIX_PATH}/build-${gameName}/MudletBootstrap.exe" "${PACKAGE_DIR}/"
-  if [ -f "${GITHUB_WORKSPACE_UNIX_PATH}/build-${gameName}/MudletBootstrap.exe.debug" ]; then
-    cp "${GITHUB_WORKSPACE_UNIX_PATH}/build-${gameName}/MudletBootstrap.exe.debug" "${PACKAGE_DIR}/"
+  cp "${GITHUB_WORKSPACE_UNIX_PATH}/build-${gameName}/MudletInstaller.exe" "${PACKAGE_DIR}/"
+  if [ -f "${GITHUB_WORKSPACE_UNIX_PATH}/build-${gameName}/MudletInstaller.exe.debug" ]; then
+    cp "${GITHUB_WORKSPACE_UNIX_PATH}/build-${gameName}/MudletInstaller.exe.debug" "${PACKAGE_DIR}/"
   fi
 
 
-  "${RUNNER_WORKSPACE}/qt-static-install/bin/windeployqt6" ./MudletBootstrap.exe
-
-  ZIP_FILE_NAME="MudletBootstrap"
+  "${RUNNER_WORKSPACE}/qt-static-install/bin/windeployqt6" ./MudletInstaller.exe
 
   # To determine which system libraries have to be copied in it requires
   # continually trying to run the executable on the target type system
@@ -132,9 +130,9 @@ while IFS= read -r line || [[ -n "$line" ]]; do
   # "luasql/sqlite3.dll" needed "libsqlite3-0.dll"!
   #
   echo ""
-  #echo "Examining MudletBootstrap application to identify other needed libraries..."
+  #echo "Examining MudletInstaller application to identify other needed libraries..."
 
-  #  NEEDED_LIBS=$("${MINGW_INTERNAL_BASE_DIR}/bin/ntldd" --recursive ./MudletBootstrap.exe \
+  #  NEEDED_LIBS=$("${MINGW_INTERNAL_BASE_DIR}/bin/ntldd" --recursive ./MudletInstaller.exe \
   #    | /usr/bin/grep -v "Qt6" \
   #    | /usr/bin/grep -i "mingw" \
   #    | /usr/bin/cut -d ">" -f2 \

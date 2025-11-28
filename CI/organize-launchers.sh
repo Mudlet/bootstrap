@@ -36,12 +36,12 @@ if [ ! "$(ls -A organized-releases 2>/dev/null)" ]; then
                         if [ -f "$launcher" ]; then
                             filename=$(basename "$launcher")
                             echo "  Found Windows launcher: $filename"
-                            # Extract game name (format: MudletBootstrap-GameName.exe)
-                            if [[ "$filename" =~ MudletBootstrap-(.+)\.exe$ ]]; then
+                            # Extract game name (format: MudletInstaller-GameName.exe)
+                            if [[ "$filename" =~ MudletInstaller-(.+)\.exe$ ]]; then
                                 gameName="${BASH_REMATCH[1]}"
                                 echo "    Game: $gameName"
                                 mkdir -p "organized-releases/$gameName"
-                                cp "$launcher" "organized-releases/$gameName/MudletBootstrap-$gameName-Windows.exe"
+                                cp "$launcher" "organized-releases/$gameName/MudletInstaller-$gameName-Windows.exe"
                             fi
                         fi
                     done
@@ -52,12 +52,12 @@ if [ ! "$(ls -A organized-releases 2>/dev/null)" ]; then
                         if [ -f "$launcher" ]; then
                             filename=$(basename "$launcher")
                             echo "  Found macOS launcher: $filename"
-                            # Extract game name (format: MudletBootstrap-GameName.dmg)
-                            if [[ "$filename" =~ MudletBootstrap-(.+)\.dmg$ ]]; then
+                            # Extract game name (format: MudletInstaller-GameName.dmg)
+                            if [[ "$filename" =~ MudletInstaller-(.+)\.dmg$ ]]; then
                                 gameName="${BASH_REMATCH[1]}"
                                 echo "    Game: $gameName"
                                 mkdir -p "organized-releases/$gameName"
-                                cp "$launcher" "organized-releases/$gameName/MudletBootstrap-$gameName-macOS.dmg"
+                                cp "$launcher" "organized-releases/$gameName/MudletInstaller-$gameName-macOS.dmg"
                             fi
                         fi
                     done
@@ -68,12 +68,12 @@ if [ ! "$(ls -A organized-releases 2>/dev/null)" ]; then
                         if [ -f "$launcher" ]; then
                             filename=$(basename "$launcher")
                             echo "  Found Linux launcher: $filename"
-                            # Extract game name (format: MudletBootstrap-linux-x64-GameName.AppImage.tar)
-                            if [[ "$filename" =~ MudletBootstrap-linux-x64-(.+)\.AppImage\.tar$ ]]; then
+                            # Extract game name (format: MudletInstaller-linux-x64-GameName.AppImage.tar)
+                            if [[ "$filename" =~ MudletInstaller-linux-x64-(.+)\.AppImage\.tar$ ]]; then
                                 gameName="${BASH_REMATCH[1]}"
                                 echo "    Game: $gameName"
                                 mkdir -p "organized-releases/$gameName"
-                                cp "$launcher" "organized-releases/$gameName/MudletBootstrap-$gameName-Linux.AppImage.tar"
+                                cp "$launcher" "organized-releases/$gameName/MudletInstaller-$gameName-Linux.AppImage.tar"
                             fi
                         fi
                     done

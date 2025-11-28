@@ -45,10 +45,10 @@ while IFS= read -r line || [[ -n "$line" ]]; do
   mkdir app
   mkdir app/lib
 
-  cp build-${gameName}/MudletBootstrap app/
+  cp build-${gameName}/MudletInstaller app/
 
   cp "$SOURCE_DIR"/mudlet{.png,.svg} app/
-  cp "$SOURCE_DIR"/mudletbootstrap.desktop app/
+  cp "$SOURCE_DIR"/mudletinstaller.desktop app/
 
   ./linuxdeployqt.AppImage --appimage-extract
 
@@ -62,7 +62,7 @@ while IFS= read -r line || [[ -n "$line" ]]; do
     echo "No OpenSSL libraries to copy found. Aborting..."
   fi
 
-  ./squashfs-root/AppRun ./app/MudletBootstrap -appimage \
+  ./squashfs-root/AppRun ./app/MudletInstaller -appimage \
     -executable=app/lib/libssl.so.1.1 \
     -executable=app/lib/libssl.so.1.0.0
 
@@ -71,18 +71,18 @@ while IFS= read -r line || [[ -n "$line" ]]; do
 
   BUILD_COMMIT=$(git rev-parse --short HEAD)
 
-  mv MudletBootstrap-${BUILD_COMMIT}-x86_64.AppImage MudletBootstrap.AppImage
-  chmod +x "MudletBootstrap.AppImage"
-  tar -cvf "MudletBootstrap-linux-x64.AppImage.tar" "MudletBootstrap.AppImage"
+  mv MudletInstaller-${BUILD_COMMIT}-x86_64.AppImage MudletInstaller.AppImage
+  chmod +x "MudletInstaller.AppImage"
+  tar -cvf "MudletInstaller-linux-x64.AppImage.tar" "MudletInstaller.AppImage"
 
-  mv "MudletBootstrap-linux-x64.AppImage.tar" "${GITHUB_WORKSPACE}/upload/MudletBootstrap-linux-x64-${gameName}.AppImage.tar"
+  mv "MudletInstaller-linux-x64.AppImage.tar" "${GITHUB_WORKSPACE}/upload/MudletInstaller-linux-x64-${gameName}.AppImage.tar"
 
   # If this is a release, also copy to extracted-games with standardized naming
   if [ "$IS_RELEASE" = true ]; then
     echo "Creating release version for $gameName"
     mkdir -p "${GITHUB_WORKSPACE}/extracted-games/$gameName"
-    cp "${GITHUB_WORKSPACE}/upload/MudletBootstrap-linux-x64-${gameName}.AppImage.tar" \
-       "${GITHUB_WORKSPACE}/extracted-games/$gameName/MudletBootstrap-$gameName-Linux.AppImage.tar"
+    cp "${GITHUB_WORKSPACE}/upload/MudletInstaller-linux-x64-${gameName}.AppImage.tar" \
+       "${GITHUB_WORKSPACE}/extracted-games/$gameName/MudletInstaller-$gameName-Linux.AppImage.tar"
   fi
 
   rm -rf app/
@@ -100,7 +100,7 @@ fi
 
 {
   echo "FOLDER_TO_UPLOAD=${GITHUB_WORKSPACE}/upload"
-  echo "UPLOAD_FILENAME=MudletBootstrap-linux-x64"
+  echo "UPLOAD_FILENAME=MudletInstaller-linux-x64"
 } >> "$GITHUB_ENV"
 DEPLOY_URL="Github artifact, see https://github.com/$GITHUB_REPOSITORY/runs/$GITHUB_RUN_ID"
 

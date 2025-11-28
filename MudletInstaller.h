@@ -1,5 +1,5 @@
-#ifndef MUDLETDOWNLOADER_H
-#define MUDLETDOWNLOADER_H
+#ifndef MUDLETINSTALLER_H
+#define MUDLETINSTALLER_H
 
 #include <QObject>
 #include <QNetworkAccessManager>
@@ -17,11 +17,11 @@ struct DownloadInfo {
     QString sha256;
 };
 
-class MudletBootstrap : public QObject {
+class MudletInstaller : public QObject {
     Q_OBJECT
 
 public:
-    explicit MudletBootstrap(QObject *parent = nullptr);
+    explicit MudletInstaller(QObject *parent = nullptr);
     void start();
 
 private slots:
