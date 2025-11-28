@@ -123,6 +123,7 @@ while IFS= read -r line || [[ -n "$line" ]]; do
 
   if [ -z "$app" ]; then
     echo "No MudletInstaller app folder to package given."
+    echo "Usage: $(basename "$0") <MudletInstaller app folder to package>"
     exit 2
   fi
   find . -iname "${app}" -type d
