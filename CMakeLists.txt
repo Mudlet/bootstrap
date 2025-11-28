@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.25)
-project(MudletBootstrap VERSION 0.1 LANGUAGES CXX)
+project(MudletInstaller VERSION 0.1 LANGUAGES CXX)
 
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTOMOC ON)
@@ -55,25 +55,25 @@ else()
 endif()
 
 
-set(TS_FILES MudletBootstrap_en_US.ts)
+set(TS_FILES MudletInstaller_en_US.ts)
 set(PROJECT_SOURCES
         main.cpp
-        MudletBootstrap.h
-        MudletBootstrap.cpp
+        MudletInstaller.h
+        MudletInstaller.cpp
         ${TS_FILES}
 )
 
-qt_add_executable(MudletBootstrap
+qt_add_executable(MudletInstaller
     MANUAL_FINALIZATION
     ${PROJECT_SOURCES}
 )
 
 # Add resources
 qt_add_resources(RESOURCES resources.qrc)
-target_sources(MudletBootstrap PRIVATE ${RESOURCES})
+target_sources(MudletInstaller PRIVATE ${RESOURCES})
 
 # Link Qt libraries
-target_link_libraries(MudletBootstrap PRIVATE
+target_link_libraries(MudletInstaller PRIVATE
     Qt${QT_VERSION_MAJOR}::Widgets
     Qt${QT_VERSION_MAJOR}::Network
     Qt${QT_VERSION_MAJOR}::StateMachine
@@ -130,7 +130,7 @@ if(WIN32)
 
     # Don't link libraries early - let Qt's dependencies handle them
     # Just ensure they're available at the end with --whole-archive
-    target_link_options(MudletBootstrap PRIVATE
+    target_link_options(MudletInstaller PRIVATE
         "LINKER:--whole-archive"
         "LINKER:${MSYS2_LIB_PATH}/libbz2.a"
         "LINKER:${MSYS2_LIB_PATH}/libbrotlicommon.a"
@@ -140,7 +140,7 @@ if(WIN32)
     )
 
     # Only link Windows system libraries
-    target_link_libraries(MudletBootstrap PRIVATE
+    target_link_libraries(MudletInstaller PRIVATE
         ws2_32 winmm imm32 wtsapi32 dwmapi uxtheme
         rpcrt4 crypt32 secur32 ole32 oleaut32 uuid
         advapi32 shell32 user32 kernel32 gdi32 comdlg32 winspool
@@ -154,32 +154,32 @@ message(STATUS
     "Project Version Minor: ${PROJECT_VERSION_MINOR}"
 )
 
-set_target_properties(MudletBootstrap PROPERTIES
+set_target_properties(MudletInstaller PROPERTIES
     ${BUNDLE_ID_OPTION}
     MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
     MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
     MACOSX_BUNDLE_LONG_VERSION_STRING ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
     MACOSX_BUNDLE TRUE
     MACOSX_BUNDLE_ICON_FILE mudlet.icns
-    MACOSX_BUNDLE_BUNDLE_NAME MudletBootstrap
-    MACOSX_BUNDLE_GUI_IDENTIFIER org.mudlet.bootstrap
+    MACOSX_BUNDLE_BUNDLE_NAME MudletInstaller
+    MACOSX_BUNDLE_GUI_IDENTIFIER org.mudlet.installer
     WIN32_EXECUTABLE TRUE
 )
 
 if(APPLE)
     file(GLOB ICON_FILE "mudlet.icns")
     message(STATUS "Using icon file: ${ICON_FILE}")
-    target_sources(MudletBootstrap PRIVATE ${ICON_FILE})
+    target_sources(MudletInstaller PRIVATE ${ICON_FILE})
     set_source_files_properties(${ICON_FILE} PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
 endif()
 
 include(GNUInstallDirs)
-install(TARGETS MudletBootstrap
+install(TARGETS MudletInstaller
     BUNDLE DESTINATION .
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
 
 if(QT_VERSION_MAJOR EQUAL 6)
-    qt_finalize_executable(MudletBootstrap)
+    qt_finalize_executable(MudletInstaller)
 endif()

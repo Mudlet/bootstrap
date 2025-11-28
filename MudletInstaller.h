@@ -17,11 +17,11 @@ struct DownloadInfo {
     QString sha256;
 };
 
-class MudletBootstrap : public QObject {
+class MudletInstaller : public QObject {
     Q_OBJECT
 
 public:
-    explicit MudletBootstrap(QObject *parent = nullptr);
+    explicit MudletInstaller(QObject *parent = nullptr);
     void start();
 
 private slots:

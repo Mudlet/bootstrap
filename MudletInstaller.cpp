@@ -1,4 +1,4 @@
-#include "MudletBootstrap.h"
+#include "MudletInstaller.h"
 #include <QApplication>
 #include <QCryptographicHash>
 #include <QDir>
@@ -118,7 +118,7 @@ bool verifyFileSha256(const QString &filePath, const QString &expectedHash) {
 }
 
 
-MudletBootstrap::MudletBootstrap(QObject *parent) :
+MudletInstaller::MudletInstaller(QObject *parent) :
     QObject(parent),
     currentReply(nullptr),
     m_stateMachine(nullptr),
@@ -154,7 +154,7 @@ MudletBootstrap::MudletBootstrap(QObject *parent) :
  * @brief Initialize the QStateMachine
  * 
  */
-void MudletBootstrap::initStateMachine() {
+void MudletInstaller::initStateMachine() {
     m_stateMachine = new QStateMachine(this);
 
     // Create states
@@ -171,35 +171,35 @@ void MudletBootstrap::initStateMachine() {
     m_stateMachine->setInitialState(m_downloadFeedState);
 
     // Connect state entry actions
-    connect(m_downloadFeedState, &QState::entered, this, &MudletBootstrap::fetchPlatformFeed);
-    connect(m_checkExistingState, &QState::entered, this, &MudletBootstrap::checkExistingFile);
-    connect(m_downloadState, &QState::entered, this, &MudletBootstrap::startDownload);
-    connect(m_retryState, &QState::entered, this, &MudletBootstrap::retryDownload);
-    connect(m_verifyHashState, &QState::entered, this, &MudletBootstrap::verifyHash);
-    connect(m_installState, &QState::entered, this, &MudletBootstrap::installApplication);
-    connect(m_errorState, &QState::entered, this, &MudletBootstrap::handleError);
-    connect(m_doneState, &QState::entered, this, &MudletBootstrap::cleanup);
+    connect(m_downloadFeedState, &QState::entered, this, &MudletInstaller::fetchPlatformFeed);
+    connect(m_checkExistingState, &QState::entered, this, &MudletInstaller::checkExistingFile);
+    connect(m_downloadState, &QState::entered, this, &MudletInstaller::startDownload);
+    connect(m_retryState, &QState::entered, this, &MudletInstaller::retryDownload);
+    connect(m_verifyHashState, &QState::entered, this, &MudletInstaller::verifyHash);
+    connect(m_installState, &QState::entered, this, &MudletInstaller::installApplication);
+    connect(m_errorState, &QState::entered, this, &MudletInstaller::handleError);
+    connect(m_doneState, &QState::entered, this, &MudletInstaller::cleanup);
 
     // Add state transitions
-    m_downloadFeedState->addTransition(this, &MudletBootstrap::feedFetched, m_checkExistingState);
-    m_downloadFeedState->addTransition(this, &MudletBootstrap::errorOccurred, m_errorState);
+    m_downloadFeedState->addTransition(this, &MudletInstaller::feedFetched, m_checkExistingState);
+    m_downloadFeedState->addTransition(this, &MudletInstaller::errorOccurred, m_errorState);
 
-    m_checkExistingState->addTransition(this, &MudletBootstrap::fileExists, m_verifyHashState);
-    m_checkExistingState->addTransition(this, &MudletBootstrap::fileNotExists, m_downloadState);
+    m_checkExistingState->addTransition(this, &MudletInstaller::fileExists, m_verifyHashState);
+    m_checkExistingState->addTransition(this, &MudletInstaller::fileNotExists, m_downloadState);
 
-    m_downloadState->addTransition(this, &MudletBootstrap::downloadComplete, m_verifyHashState);
-    m_downloadState->addTransition(this, &MudletBootstrap::errorOccurred, m_retryState);
+    m_downloadState->addTransition(this, &MudletInstaller::downloadComplete, m_verifyHashState);
+    m_downloadState->addTransition(this, &MudletInstaller::errorOccurred, m_retryState);
 
-    m_retryState->addTransition(this, &MudletBootstrap::fileNotExists, m_downloadState);  // retry download
-    m_retryState->addTransition(this, &MudletBootstrap::errorOccurred, m_errorState);     // max retries reached
+    m_retryState->addTransition(this, &MudletInstaller::fileNotExists, m_downloadState);  // retry download
+    m_retryState->addTransition(this, &MudletInstaller::errorOccurred, m_errorState);     // max retries reached
 
-    m_verifyHashState->addTransition(this, &MudletBootstrap::hashValid, m_installState);
-    m_verifyHashState->addTransition(this, &MudletBootstrap::hashInvalid, m_errorState);
+    m_verifyHashState->addTransition(this, &MudletInstaller::hashValid, m_installState);
+    m_verifyHashState->addTransition(this, &MudletInstaller::hashInvalid, m_errorState);
 
-    m_installState->addTransition(this, &MudletBootstrap::installComplete, m_doneState);
-    m_installState->addTransition(this, &MudletBootstrap::errorOccurred, m_errorState);
+    m_installState->addTransition(this, &MudletInstaller::installComplete, m_doneState);
+    m_installState->addTransition(this, &MudletInstaller::errorOccurred, m_errorState);
 
-    m_errorState->addTransition(this, &MudletBootstrap::finished, m_doneState);
+    m_errorState->addTransition(this, &MudletInstaller::finished, m_doneState);
 
     // Connect state machine finished signal
     connect(m_stateMachine, &QStateMachine::finished, this, [this]() {
@@ -237,7 +237,7 @@ void MudletBootstrap::initStateMachine() {
  * @brief Start the state machine
  * 
  */
-void MudletBootstrap::start() {
+void MudletInstaller::start() {
     m_stateMachine->start();
 }
 
@@ -245,7 +245,7 @@ void MudletBootstrap::start() {
 /**
  * @brief Query the platform OS and fetch the proper platform feed from dblsqd
  */
-void MudletBootstrap::fetchPlatformFeed() {
+void MudletInstaller::fetchPlatformFeed() {
 
     QSettings settings(":/resources/launch.ini", QSettings::IniFormat);
 
@@ -265,7 +265,7 @@ void MudletBootstrap::fetchPlatformFeed() {
 
     currentReply = networkManager.get(QNetworkRequest(QUrl(feedUrl)));
 
-    connect(currentReply, &QNetworkReply::finished, this, &MudletBootstrap::onFetchPlatformFeedFinished);
+    connect(currentReply, &QNetworkReply::finished, this, &MudletInstaller::onFetchPlatformFeedFinished);
 
     // Show the progress bar window
     progressWindow->show();
@@ -275,7 +275,7 @@ void MudletBootstrap::fetchPlatformFeed() {
  * @brief Called upon complete receipt of the platform feed. 
  * Extracts the url and sha256 from the JSON and sets up a new download for the proper file.
  */
-void MudletBootstrap::onFetchPlatformFeedFinished() {
+void MudletInstaller::onFetchPlatformFeedFinished() {
     if (currentReply->error() != QNetworkReply::NoError) {
         qDebug() << "Error fetching feed:" << currentReply->errorString();
         currentReply->deleteLater();
@@ -343,7 +343,7 @@ void MudletBootstrap::onFetchPlatformFeedFinished() {
  * @brief Check if outputFile exists and emit corresponding state signal
  * Also determines bytes already downloaded for resume functionality
  */
-void MudletBootstrap::checkExistingFile() {
+void MudletInstaller::checkExistingFile() {
     statusLabel->setText("Checking existing file...");
     qDebug() << "Checking if file exists:" << outputFile;
 
@@ -367,7 +367,7 @@ void MudletBootstrap::checkExistingFile() {
  * @brief Create a request and start downloading the Mudlet installer
  * Supports resuming downloads using HTTP Range requests
  */
-void MudletBootstrap::startDownload() {
+void MudletInstaller::startDownload() {
     QNetworkRequest request{QUrl(info.url)};
     
     // If we have bytes already downloaded, request only the remaining part
@@ -385,13 +385,13 @@ void MudletBootstrap::startDownload() {
     
     currentReply = networkManager.get(request);
 
-    connect(currentReply, &QNetworkReply::downloadProgress, this, &MudletBootstrap::onDownloadProgress);
-    connect(currentReply, &QNetworkReply::finished, this, &MudletBootstrap::onDownloadFinished);
-    connect(currentReply, &QNetworkReply::errorOccurred, this, &MudletBootstrap::onDownloadError);
+    connect(currentReply, &QNetworkReply::downloadProgress, this, &MudletInstaller::onDownloadProgress);
+    connect(currentReply, &QNetworkReply::finished, this, &MudletInstaller::onDownloadFinished);
+    connect(currentReply, &QNetworkReply::errorOccurred, this, &MudletInstaller::onDownloadError);
 
 }
 
-void MudletBootstrap::onDownloadProgress(qint64 bytesReceived, qint64 bytesTotal) {
+void MudletInstaller::onDownloadProgress(qint64 bytesReceived, qint64 bytesTotal) {
     if (bytesTotal > 0) {
         int progress = static_cast<int>((bytesReceived * 100) / bytesTotal);
         progressBar->setValue(progress);
@@ -411,7 +411,7 @@ void MudletBootstrap::onDownloadProgress(qint64 bytesReceived, qint64 bytesTotal
  * Called upon completion of the Mudlet installer download.
  * Supports appending to existing file when resuming.
  */
-void MudletBootstrap::onDownloadFinished() {
+void MudletInstaller::onDownloadFinished() {
     if (currentReply->error() != QNetworkReply::NoError) {
         statusLabel->setText(QString("Error downloading file: %1").arg(currentReply->errorString()));
         emit errorOccurred();
@@ -444,7 +444,7 @@ void MudletBootstrap::onDownloadFinished() {
 }
 
 
-void MudletBootstrap::onDownloadError(QNetworkReply::NetworkError error) {
+void MudletInstaller::onDownloadError(QNetworkReply::NetworkError error) {
     qDebug() << "Download error:" << currentReply->errorString() << "Error code:" << error;
     
     // Distinguish between retryable and non-retryable errors
@@ -488,7 +488,7 @@ void MudletBootstrap::onDownloadError(QNetworkReply::NetworkError error) {
  * Emits corfresponding hashValid or hashInvalid state signals
  * 
  */
-void MudletBootstrap::verifyHash() {
+void MudletInstaller::verifyHash() {
     statusLabel->setText("Verifying SHA256...");
     statusLabel->repaint();
     qDebug() << "Verifying hash";
@@ -703,7 +703,7 @@ bool installAndRunAppImage(QProcessEnvironment &env, const QString& tarFilePath)
  * Emits corresponding installComplete or errorOccurred state signal.
  * 
  */
-void MudletBootstrap::installApplication() {
+void MudletInstaller::installApplication() {
 
     QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
 
@@ -771,7 +771,7 @@ void MudletBootstrap::installApplication() {
     if (!installSuccess) {
         emit errorOccurred();
     } else {
-        QString labelString = QString("%1 has been installed! You can now delete the MudletBoostrap-%1 app.").arg(launchProfile);
+        QString labelString = QString("%1 has been installed! You can now delete the MudletInstaller-%1 app.").arg(launchProfile);
 
 #if defined(Q_OS_WIN)
         if (shortcutCreated) {
@@ -795,7 +795,7 @@ void MudletBootstrap::installApplication() {
  * For now, just set the status label to a generic error message.
  * 
  */
-void MudletBootstrap::handleError() {
+void MudletInstaller::handleError() {
     qDebug() << "Handling error state";
     statusLabel->setText("An error occurred");
     // Show error dialog?
@@ -807,7 +807,7 @@ void MudletBootstrap::handleError() {
  * @brief Final state machine step. Deletes the downloaded file.
  * 
  */
-void MudletBootstrap::cleanup() {
+void MudletInstaller::cleanup() {
     qDebug() << "Cleaning up";
     if (QFile::exists(outputFile)) {
         if (!QFile::remove(outputFile)) {
@@ -824,7 +824,7 @@ void MudletBootstrap::cleanup() {
  * @brief Handle download retry logic
  * Decides whether to retry the download or give up based on retry count
  */
-void MudletBootstrap::retryDownload() {
+void MudletInstaller::retryDownload() {
     qDebug() << "Retry state entered, retry count:" << retryCount;
     
     if (retryCount < MAX_RETRIES) {

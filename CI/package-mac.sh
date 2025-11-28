@@ -63,9 +63,9 @@ fi
 
 
 #if [ -n "${GITHUB_REPOSITORY}" ]; then
-#    mv "${BUILD_DIR}/mudletbootstrap.app" "${BUILD_DIR}/${appBaseName}.app"
+#    mv "${BUILD_DIR}/mudletinstaller.app" "${BUILD_DIR}/${appBaseName}.app"
 #else
-#    mv "${BUILD_DIR}/MudletBootstrap.app" "${BUILD_DIR}/${appBaseName}.app"
+#    mv "${BUILD_DIR}/MudletInstaller.app" "${BUILD_DIR}/${appBaseName}.app"
 #fi
 
 #./make-installer.sh "${appBaseName}.app"
@@ -113,7 +113,7 @@ fi
 
 while IFS= read -r line || [[ -n "$line" ]]; do
   gameName=$(echo "$line" | tr -cd '[:alnum:]_-')
-  appBaseName="MudletBootstrap"
+  appBaseName="MudletInstaller"
   BUILD_DIR="${GITHUB_WORKSPACE}/build-${gameName}"
 
   cd "${BUILD_DIR}"
@@ -122,8 +122,8 @@ while IFS= read -r line || [[ -n "$line" ]]; do
   app=$(basename "${appBaseName}.app")
 
   if [ -z "$app" ]; then
-    echo "No MudletBootstrap app folder to package given."
-    echo "Usage: $pgm <MudletBootstrap app folder to package>"
+    echo "No MudletInstaller app folder to package given."
+    echo "Usage: $pgm <MudletInstaller app folder to package>"
     exit 2
   fi
   find . -iname "${app}" -type d
@@ -143,11 +143,11 @@ while IFS= read -r line || [[ -n "$line" ]]; do
 
   # fix unfinished deployment of macdeployqt
   echo "Running macdeployqtfix"
-  python ${GITHUB_WORKSPACE}/macdeployqtfix.py "${app}/Contents/MacOS/MudletBootstrap" "${QT_DIR}" $( [ -n "$DEBUG" ] && echo "--verbose" )
+  python ${GITHUB_WORKSPACE}/macdeployqtfix.py "${app}/Contents/MacOS/MudletInstaller" "${QT_DIR}" $( [ -n "$DEBUG" ] && echo "--verbose" )
 
   echo "Fixing plist entries..."
-  /usr/libexec/PlistBuddy -c "Add CFBundleName string MudletBootstrap" "${app}/Contents/Info.plist" || true
-  /usr/libexec/PlistBuddy -c "Add CFBundleDisplayName string MudletBootstrap" "${app}/Contents/Info.plist" || true
+  /usr/libexec/PlistBuddy -c "Add CFBundleName string MudletInstaller" "${app}/Contents/Info.plist" || true
+  /usr/libexec/PlistBuddy -c "Add CFBundleDisplayName string MudletInstaller" "${app}/Contents/Info.plist" || true
 
   /usr/libexec/PlistBuddy -c "Add CFBundleShortVersionString string ${shortVersion}" "${app}/Contents/Info.plist" || true
   /usr/libexec/PlistBuddy -c "Add CFBundleVersion string ${version}" "${app}/Contents/Info.plist" || true
@@ -170,19 +170,19 @@ while IFS= read -r line || [[ -n "$line" ]]; do
   echo "SOURCE_DIR: ${SOURCE_DIR}"
 
   echo "Modifying config file..."
-  cp ${SOURCE_DIR}/mudletbootstrap-appdmg.json ${BUILD_DIR}
+  cp ${SOURCE_DIR}/mudletinstaller-appdmg.json ${BUILD_DIR}
 
   # Modify appdmg config file according to the app file to package
-  perl -pi -e "s|../source/build/.*MudletBootstrap.*\\.app|${BUILD_DIR}/${app}|i" "${BUILD_DIR}/mudletbootstrap-appdmg.json"
+  perl -pi -e "s|../source/build/.*MudletInstaller.*\\.app|${BUILD_DIR}/${app}|i" "${BUILD_DIR}/mudletinstaller-appdmg.json"
   # Update icons to the correct type
-  perl -pi -e "s|../source/src/icons/.*\\.icns|${SOURCE_DIR}/mudlet.icns|i" "${BUILD_DIR}/mudletbootstrap-appdmg.json"
+  perl -pi -e "s|../source/src/icons/.*\\.icns|${SOURCE_DIR}/mudlet.icns|i" "${BUILD_DIR}/mudletinstaller-appdmg.json"
 
   echo "Listing config file:"
-  cat ${BUILD_DIR}/mudletbootstrap-appdmg.json
+  cat ${BUILD_DIR}/mudletinstaller-appdmg.json
 
   echo "Creating appdmg..."
   # Last: build *.dmg file
-  appdmg "${BUILD_DIR}/mudletbootstrap-appdmg.json" "${HOME}/Desktop/$(basename "${app%.*}").dmg"
+  appdmg "${BUILD_DIR}/mudletinstaller-appdmg.json" "${HOME}/Desktop/$(basename "${app%.*}").dmg"
 
   if [ -n "$MACOS_SIGNING_PASS" ]; then
       sign_and_notarize "${HOME}/Desktop/${appBaseName}.dmg"
@@ -195,7 +195,7 @@ while IFS= read -r line || [[ -n "$line" ]]; do
     echo "Creating release version for $gameName"
     mkdir -p "${GITHUB_WORKSPACE}/extracted-games/$gameName"
     cp "${GITHUB_WORKSPACE}/upload/${appBaseName}-${gameName}.dmg" \
-       "${GITHUB_WORKSPACE}/extracted-games/$gameName/MudletBootstrap-$gameName-macOS.dmg"
+       "${GITHUB_WORKSPACE}/extracted-games/$gameName/MudletInstaller-$gameName-macOS.dmg"
   fi
 
 done < "${GITHUB_WORKSPACE}/GameList.txt"

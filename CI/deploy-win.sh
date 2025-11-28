@@ -92,19 +92,19 @@ while IFS= read -r line || [[ -n "$line" ]]; do
   # Remove specific file types from the directory
   rm ./*.cpp ./*.o
 
-  mv "$PACKAGE_DIR/MudletBootstrap.exe" "MudletBootstrap-${gameName}.exe"
+  mv "$PACKAGE_DIR/MudletInstaller.exe" "MudletInstaller-${gameName}.exe"
 
   # Sign the executable if Azure token is available
   if [ -n "${AZURE_ACCESS_TOKEN}" ]; then
-    echo "=== Signing MudletBootstrap-${gameName}.exe ==="
-    EXECUTABLE_WINPATH="$(cygpath -aw "${PACKAGE_DIR}/MudletBootstrap-${gameName}.exe")"
+    echo "=== Signing MudletInstaller-${gameName}.exe ==="
+    EXECUTABLE_WINPATH="$(cygpath -aw "${PACKAGE_DIR}/MudletInstaller-${gameName}.exe")"
     java.exe -jar "${JAVA_JAR_WINPATHFILE}" \
       --storetype TRUSTEDSIGNING \
       --keystore eus.codesigning.azure.net \
       --storepass "${AZURE_ACCESS_TOKEN}" \
       --alias Mudlet/Mudlet \
       "${EXECUTABLE_WINPATH}"
-    echo "Signing completed for MudletBootstrap-${gameName}.exe"
+    echo "Signing completed for MudletInstaller-${gameName}.exe"
   fi
 
   # Move packaged files to the upload directory
@@ -116,8 +116,8 @@ while IFS= read -r line || [[ -n "$line" ]]; do
   if [ "$IS_RELEASE" = true ]; then
     echo "Creating release version for $gameName"
     mkdir -p "${GITHUB_WORKSPACE_UNIX_PATH}/extracted-games/$gameName"
-    cp "${PACKAGE_DIR}/MudletBootstrap-${gameName}.exe" \
-       "${GITHUB_WORKSPACE_UNIX_PATH}/extracted-games/$gameName/MudletBootstrap-$gameName-Windows.exe"
+    cp "${PACKAGE_DIR}/MudletInstaller-${gameName}.exe" \
+       "${GITHUB_WORKSPACE_UNIX_PATH}/extracted-games/$gameName/MudletInstaller-$gameName-Windows.exe"
   fi
 
   cd "$GITHUB_WORKSPACE" || exit 1
@@ -132,5 +132,5 @@ fi
 # Append these variables to the GITHUB_ENV to make them available in subsequent steps
 {
   echo "FOLDER_TO_UPLOAD=${uploadDir}\\"
-  echo "UPLOAD_FILENAME=MudletBootstrap-${MSYSTEM}"
+  echo "UPLOAD_FILENAME=MudletInstaller-${MSYSTEM}"
 } >> "$GITHUB_ENV"

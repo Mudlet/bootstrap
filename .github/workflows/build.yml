@@ -1,4 +1,4 @@
-name: Build MudletBootstrap
+name: Build MudletInstaller
 on:
   push:
     branches: [master, development]
@@ -244,7 +244,7 @@ jobs:
 
         # Start building the release body
         cat > release-body.md << 'EOF'
-        ## MudletBootstrap Release ${{ github.ref_name }}
+        ## MudletInstaller Release ${{ github.ref_name }}
         
         Choose your game below and download the appropriate file for your operating system:
         
@@ -289,19 +289,19 @@ jobs:
         
         ### Windows
         1. Download the `.exe` file for your game
-        2. Run MudletBootstrap - it'll download & install Mudlet for you
-        3. You can delete MudletBootstrap after - Mudlet is all set up to play your favourite game.
-        
+        2. Run MudletInstaller - it'll download & install Mudlet for you
+        3. You can delete MudletInstaller after - Mudlet is all set up to play your favourite game.
+
         ### macOS
         1. Download the `.dmg` file for your game
         2. Open the DMG file
-        3. Runt he MudletBootstrap app from within the mounted DMG
-        
+        3. Run the MudletInstaller app from within the mounted DMG
+
         ### Linux
         1. Download the `.AppImage.tar` file for your game
-        2. Extract it: `tar -xf MudletBootstrap-[game]-Linux.AppImage.tar`
-        2. Extract and run the AppImage within: `MudletBootstrap-[game].AppImage`
-        3. You can delete MudletBootstrap after - Mudlet is all set up to play your favourite 
+        2. Extract it: `tar -xf MudletInstaller-[game]-Linux.AppImage.tar`
+        2. Extract and run the AppImage within: `MudletInstaller-[game].AppImage`
+        3. You can delete MudletInstaller after - Mudlet is all set up to play your favourite 
         EOF
         
         echo "Generated release body:"
@@ -312,7 +312,7 @@ jobs:
       with:
         files: organized-releases/**/*
         tag_name: ${{ github.ref_name }}
-        name: MudletBootstrap ${{ github.ref_name }}
+        name: MudletInstaller ${{ github.ref_name }}
         body_path: release-body.md
         draft: false
         prerelease: false

@@ -4,14 +4,14 @@
 #include <QRegularExpression>
 #include <QString>
 
-#include "MudletBootstrap.h"
+#include "MudletInstaller.h"
 
 int main(int argc, char *argv[]) {
     QApplication a(argc, argv);
 
     qDebug() << "Starting MudletDownloader...";
 
-    MudletBootstrap app;
+    MudletInstaller app;
     app.start();
 
     return a.exec();
