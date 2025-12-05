@@ -35,13 +35,14 @@ echo "CMAKE_PREFIX_PATH is: ${CMAKE_PREFIX_PATH}"
 echo "Building apps in GameList..."
 while IFS= read -r line || [[ -n "$line" ]]; do
   gameName=$(echo "$line" | tr -cd '[:alnum:]_-')
+  gameDisplayName=$(echo "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
 
   mkdir build-${gameName}
   cd build-${gameName}
 
   # Update the `launch.ini` file
-  echo "Updating ${LAUNCH_INI_PATH} for MUDLET_PROFILES=${gameName}..."
-  sed -i.bak "s/^MUDLET_PROFILES=.*/MUDLET_PROFILES=${gameName}/" "$LAUNCH_INI_PATH"
+  echo "Updating ${LAUNCH_INI_PATH} for MUDLET_PROFILES=${gameDisplayName}..."
+  sed -i.bak "s/^MUDLET_PROFILES=.*/MUDLET_PROFILES=${gameDisplayName}/" "$LAUNCH_INI_PATH"
 
   echo "Running CMake configure..."
 

@@ -84,14 +84,15 @@ echo "QT_LINGUIST_DIR is: ${QT_LINGUIST_DIR}"
 echo "Building apps in GameList..."
 while IFS= read -r line || [[ -n "$line" ]]; do
   gameName=$(echo "$line" | tr -cd '[:alnum:]_-')
+  gameDisplayName=$(echo "$line" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
 
   rm -rf build-${gameName}
   mkdir build-${gameName}
   cd build-${gameName}
 
   # Update the `launch.ini` file
-  echo "Updating ${LAUNCH_INI_PATH} for MUDLET_PROFILES=${gameName}..."
-  sed -i.bak "s/^MUDLET_PROFILES=.*/MUDLET_PROFILES=${gameName}/" "$LAUNCH_INI_PATH"
+  echo "Updating ${LAUNCH_INI_PATH} for MUDLET_PROFILES=${gameDisplayName}..."
+  sed -i.bak "s/^MUDLET_PROFILES=.*/MUDLET_PROFILES=${gameDisplayName}/" "$LAUNCH_INI_PATH"
 
   # Check if Qt6Config.cmake exists
   QT_CONFIG_FILE="${RUNNER_WORKSPACE}/qt-static-install/lib/cmake/Qt6/Qt6Config.cmake"
