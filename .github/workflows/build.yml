@@ -106,7 +106,7 @@ jobs:
     - name: (Windows) Restore Qt cache
       if: runner.os == 'Windows'
       id: restore-qt
-      uses: actions/cache/restore@v4
+      uses: actions/cache/restore@v5
       with:
         path: ${{env.QT_ROOT}}
         key: qt
@@ -118,14 +118,14 @@ jobs:
 
     - name: (Windows) Save Qt cache
       if: runner.os == 'Windows' && steps.restore-qt.outputs.cache-hit != 'true'
-      uses: actions/cache/save@v4
+      uses: actions/cache/save@v5
       with:
         path: ${{env.QT_ROOT}}
         key: ${{ steps.restore-qt.outputs.cache-primary-key }}
 
     - name: Restore ccache
       id: restore-ccache
-      uses: actions/cache/restore@v4
+      uses: actions/cache/restore@v5
       with:
         path: ${{runner.workspace}}/ccache
         key: ccache-${{matrix.os}}-${{matrix.buildname}}-${{ github.sha }}
@@ -150,7 +150,7 @@ jobs:
 
     - name: Save ccache
       if: always() && steps.restore-ccache.outputs.cache-hit != 'true'
-      uses: actions/cache/save@v4
+      uses: actions/cache/save@v5
       with:
         path: ${{runner.workspace}}/ccache
         key: ${{ steps.restore-ccache.outputs.cache-primary-key }}
