@@ -1,0 +1,76 @@
+name: Sync Games List
+
+on:
+  schedule:
+    - cron: '0 6 * * *'  # Daily at 6:00 UTC
+  workflow_dispatch:      # Manual trigger
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Source
+      uses: actions/checkout@v6
+
+    - name: Fetch and parse Mudlet games list
+      run: |
+        # Fetch TGameDetails.h from Mudlet repo
+        curl -sf https://raw.githubusercontent.com/Mudlet/Mudlet/development/src/TGameDetails.h -o TGameDetails.h
+
+        # Extract game names from the C++ struct
+        # Pattern matches: { qsl("GameName"), at the start of each game entry
+        grep -oP '\{\s*qsl\("\K[^"]+' TGameDetails.h | \
+          grep -Ev "Mudlet Tutorial|Mudlet self-test" | \
+          sort > mudlet-games.txt
+
+        echo "Games found in Mudlet repo:"
+        cat mudlet-games.txt
+        echo ""
+        echo "Total: $(wc -l < mudlet-games.txt) games"
+
+    - name: Check for differences
+      id: diff
+      run: |
+        echo "Current GameList.txt:"
+        cat GameList.txt
+        echo ""
+
+        # Compare sorted versions
+        if diff -q <(sort GameList.txt) mudlet-games.txt > /dev/null 2>&1; then
+          echo "No changes detected"
+          echo "changes=false" >> $GITHUB_OUTPUT
+        else
+          echo "Changes detected:"
+          echo ""
+          echo "--- Differences ---"
+          diff <(sort GameList.txt) mudlet-games.txt || true
+          echo ""
+          echo "--- Added games ---"
+          comm -13 <(sort GameList.txt) mudlet-games.txt || true
+          echo ""
+          echo "--- Removed games ---"
+          comm -23 <(sort GameList.txt) mudlet-games.txt || true
+          echo ""
+          echo "changes=true" >> $GITHUB_OUTPUT
+        fi
+
+    - name: Update GameList.txt
+      if: steps.diff.outputs.changes == 'true'
+      run: mv mudlet-games.txt GameList.txt
+
+    - name: Create Pull Request
+      if: steps.diff.outputs.changes == 'true'
+      uses: peter-evans/create-pull-request@v7
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        commit-message: "Sync games list with Mudlet upstream"
+        title: "Sync games list with Mudlet upstream"
+        body: |
+          This PR syncs the games list with [TGameDetails.h](https://github.com/Mudlet/Mudlet/blob/development/src/TGameDetails.h) from the main Mudlet repository.
+
+          The sync workflow runs daily and detects any additions or removals of games in the upstream Mudlet codebase.
+
+          Please review the changes before merging.
+        branch: sync-games-from-mudlet
+        delete-branch: true
