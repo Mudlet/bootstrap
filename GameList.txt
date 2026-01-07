@@ -5,13 +5,13 @@ Abandoned Realms
 Accursed Lands
 Achaea
 Aetolia
+Astaria
 Avalon.de
 BatMUD
 BlackMUD
 Carrion Fields
 Cleft of Dimensions
 Clessidra
-CoreMUD
 Fierymud
 God Wars II
 Imperian
@@ -25,6 +25,7 @@ Midnight Sun 2
 MorgenGrauen
 Mudren
 Multi-Users in Middle-earth
+Petria
 Realms of Despair
 Reinos de Leyenda
 Slothmud
