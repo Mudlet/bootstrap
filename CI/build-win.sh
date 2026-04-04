@@ -63,10 +63,8 @@ LAUNCH_INI_PATH="${GITHUB_WORKSPACE}/resources/launch.ini"
 Qt6_PREFIX=${RUNNER_WORKSPACE}/qt-static-install
 QT_DIR=${Qt6_PREFIX}/lib/cmake/Qt6
 export QT_DIR
-QT_LINGUIST_DIR=$(cygpath -w ${MSYSTEM_PREFIX}/lib/cmake/Qt6LinguistTools)
 echo "Qt6_PREFIX is: ${Qt6_PREFIX}"
 echo "QT_DIR is: ${QT_DIR}"
-echo "QT_LINGUIST_DIR is: ${QT_LINGUIST_DIR}"
 
 echo "Building apps in GameList..."
 while IFS= read -r line || [[ -n "$line" ]]; do
@@ -89,16 +87,6 @@ while IFS= read -r line || [[ -n "$line" ]]; do
     echo "ERROR: Qt6Config.cmake not found at: ${QT_CONFIG_FILE}"
     # Try to find it
     find "${RUNNER_WORKSPACE}/qt-static-install" -name "Qt6Config.cmake" -type f
-    exit 1
-  fi
-
-  # Check if LinguistTools exists
-  if [ -f "${QT_LINGUIST_DIR}/Qt6LinguistToolsConfig.cmake" ]; then
-    echo "Found Qt6LinguistToolsConfig.cmake at: ${QT_LINGUIST_DIR}/Qt6LinguistToolsConfig.cmake"
-  else
-    echo "ERROR: Qt6LinguistToolsConfig.cmake not found at: ${QT_LINGUIST_DIR}/Qt6LinguistToolsConfig.cmake"
-    # Try to find it in system installation
-    find "${MSYSTEM_PREFIX}" -name "Qt6LinguistToolsConfig.cmake" -type f 2>/dev/null
     exit 1
   fi
 
@@ -192,8 +180,6 @@ EOF
   cmake -G Ninja \
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_PREFIX_PATH="$(cygpath -w $Qt6_PREFIX)" \
-    -DQt6LinguistTools_DIR="${QT_LINGUIST_DIR}" \
-    -DQt6BundledPcre2_DIR="$(cygpath -w ${MSYSTEM_PREFIX}/lib/cmake/Qt6)" \
     -DCMAKE_IGNORE_PATH="${MSYSTEM_PREFIX}/lib/cmake/Qt6" \
     ..
 

@@ -4,7 +4,7 @@ echo "=== Cloning Qt Source Repository ==="
 cd ${RUNNER_WORKSPACE}
 git clone --branch v6.9.1 --depth 1 --no-recurse-submodules https://github.com/qt/qt5.git qt6-source
 cd qt6-source
-git submodule update --init qtbase
+git submodule update --init qtbase qttools
 
 echo "=== Configuring Qt for Static Linking ==="
 #perl init-repository --module-subset=qtbase
@@ -16,7 +16,7 @@ export CMAKE_SUPPRESS_DEVELOPER_WARNINGS=ON
 # Configure Qt with proper static dependencies
 ../qt6-source/configure -prefix ${RUNNER_WORKSPACE}/qt-static-install \
   -static -static-runtime -release -opensource -no-shared -confirm-license \
-  -init-submodules -submodules qtbase \
+  -init-submodules -submodules qtbase,qttools \
   -nomake tests -nomake examples \
   -skip qt3d -skip qtmultimedia -skip qtdeclarative -skip qtshadertools -skip qtquick -skip designer \
   -no-opengl -no-dbus \

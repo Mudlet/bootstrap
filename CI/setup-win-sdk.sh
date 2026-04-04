@@ -112,8 +112,6 @@ while true; do
     "${MINGW_PACKAGE_PREFIX}-ninja" \
     "${MINGW_PACKAGE_PREFIX}-pcre2" \
     "${MINGW_PACKAGE_PREFIX}-bzip2" \
-    "${MINGW_PACKAGE_PREFIX}-qt6-tools" \
-    "${MINGW_PACKAGE_PREFIX}-qt6-translations" \
     "${MINGW_PACKAGE_PREFIX}-freetype" \
     "${MINGW_PACKAGE_PREFIX}-harfbuzz" \
     "${MINGW_PACKAGE_PREFIX}-libjpeg-turbo" \
