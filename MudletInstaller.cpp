@@ -19,19 +19,21 @@
 #include <QTimer>
 #include <QVersionNumber>
 
-QMap<QString, QString> getPlatformFeedMap(const QString &type) {
-
-    const QString dblsqdFeedType = type == "PTB" ? "public-test-build" : "release";
-
-    const QString dblsqdFeedUrl = "https://feeds.dblsqd.com/MKMMR7HNSP65PquQQbiDIw/";
-
-    return {
-        {"mac/arm",         QString("%1%2/mac/arm").arg(dblsqdFeedUrl).arg(dblsqdFeedType)},
-        {"mac/x86_64",      QString("%1%2/mac/x86_64").arg(dblsqdFeedUrl).arg(dblsqdFeedType)},
-        {"win/x86_64",      QString("%1%2/win/x86_64").arg(dblsqdFeedUrl).arg(dblsqdFeedType)},
-        {"win/x86",         QString("%1%2/win/x86").arg(dblsqdFeedUrl).arg(dblsqdFeedType)},
-        {"linux/x86_64",    QString("%1%2/linux/x86_64").arg(dblsqdFeedUrl).arg(dblsqdFeedType)}
-    };
+/**
+ * @brief Build the asset filename pattern for the current platform
+ * Matches the naming convention used by Mudlet's GitHub releases
+ */
+QString buildAssetPattern(const QString &os) {
+    if (os == "linux/x86_64") {
+        return "-linux-x64.AppImage.tar";
+    } else if (os == "win/x86_64" || os == "win/x86") {
+        return "-windows-64-installer.exe";
+    } else if (os == "mac/arm") {
+        return "-arm64.dmg";
+    } else if (os == "mac/x86_64") {
+        return "-x86_64.dmg";
+    }
+    return {};
 }
 
 
@@ -75,9 +77,9 @@ QString readLaunchProfileFromResource() {
 
 
 /**
- * @brief Verify the downloaded file sha256 with the provided hash from dblsqd
- * 
- * @param filePath Path to the file of whose hash wil be computed
+ * @brief Verify the downloaded file sha256 with the provided hash from the release
+ *
+ * @param filePath Path to the file of whose hash will be computed
  * @param expectedHash Expected sha256 hash
  * @return true If the expectedHash matches the sha256 hash of the file
  * @return false If the expectedHash does not match the sha256 hash of the file
@@ -242,28 +244,33 @@ void MudletInstaller::start() {
 
 
 /**
- * @brief Query the platform OS and fetch the proper platform feed from dblsqd
+ * @brief Query GitHub Releases API for the latest Mudlet release
  */
 void MudletInstaller::fetchPlatformFeed() {
 
     QSettings settings(":/resources/launch.ini", QSettings::IniFormat);
-
     QString releaseType = settings.value("Settings/RELEASE_TYPE", "").toString();
 
-    QMap<QString, QString> feedMap = getPlatformFeedMap(releaseType);
-
     QString os = detectOS();
+    assetPattern = buildAssetPattern(os);
 
-    QString feedUrl = feedMap.value(os);
-
-    if (feedUrl.isEmpty()) {
-        qDebug() << "No feed URL found for platform:" << os;
+    if (assetPattern.isEmpty()) {
+        qDebug() << "No asset pattern found for platform:" << os;
         emit errorOccurred();
         return;
     }
 
-    currentReply = networkManager.get(QNetworkRequest(QUrl(feedUrl)));
+    // Use per_page=10 for PTB (need to scan prereleases), per_page=100 for stable
+    bool isPTB = (releaseType == "PTB");
+    int perPage = isPTB ? 10 : 100;
+    QString feedUrl = QString("https://api.github.com/repos/Mudlet/Mudlet/releases?per_page=%1").arg(perPage);
 
+    QNetworkRequest request(QUrl(feedUrl));
+    request.setRawHeader("Accept", "application/vnd.github+json");
+    request.setRawHeader("User-Agent", "MudletInstaller");
+    request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
+
+    currentReply = networkManager.get(request);
     connect(currentReply, &QNetworkReply::finished, this, &MudletInstaller::onFetchPlatformFeedFinished);
 
     // Show the progress bar window
@@ -271,8 +278,8 @@ void MudletInstaller::fetchPlatformFeed() {
 }
 
 /**
- * @brief Called upon complete receipt of the platform feed. 
- * Extracts the url and sha256 from the JSON and sets up a new download for the proper file.
+ * @brief Called upon complete receipt of the GitHub releases feed.
+ * Finds the latest matching release and its platform asset, then fetches SHA256SUMS.txt.
  */
 void MudletInstaller::onFetchPlatformFeedFinished() {
     if (currentReply->error() != QNetworkReply::NoError) {
@@ -286,34 +293,78 @@ void MudletInstaller::onFetchPlatformFeedFinished() {
     currentReply->deleteLater();
 
     QJsonDocument doc = QJsonDocument::fromJson(jsonData);
-    if (doc.isNull() || !doc.isObject()) {
-        qDebug() << "Invalid JSON data.";
+    if (doc.isNull() || !doc.isArray()) {
+        // Check for GitHub API error (returns object with "message" field)
+        if (doc.isObject() && doc.object().contains("message")) {
+            qDebug() << "GitHub API error:" << doc.object().value("message").toString();
+        } else {
+            qDebug() << "Invalid JSON data from GitHub API.";
+        }
         emit errorOccurred();
         return;
     }
 
-    QJsonObject rootObj = doc.object();
-    QJsonArray releases = rootObj.value("releases").toArray();
-    if (releases.isEmpty()) {
-        qDebug() << "No releases found.";
+    QSettings settings(":/resources/launch.ini", QSettings::IniFormat);
+    QString releaseType = settings.value("Settings/RELEASE_TYPE", "").toString();
+    bool isPTB = (releaseType == "PTB");
+
+    QJsonArray releasesArray = doc.array();
+    QString checksumsUrl;
+
+    for (const auto &val : releasesArray) {
+        QJsonObject releaseObj = val.toObject();
+
+        // Filter: PTB = prereleases only, stable = non-prereleases only
+        if (isPTB != releaseObj.value("prerelease").toBool()) {
+            continue;
+        }
+        // Skip drafts
+        if (releaseObj.value("draft").toBool()) {
+            continue;
+        }
+
+        QJsonArray assets = releaseObj.value("assets").toArray();
+
+        // Search assets for our platform binary and SHA256SUMS.txt
+        for (const auto &assetVal : assets) {
+            QJsonObject asset = assetVal.toObject();
+            QString name = asset.value("name").toString();
+
+            if (name == "SHA256SUMS.txt") {
+                checksumsUrl = asset.value("browser_download_url").toString();
+                continue;
+            }
+
+            if (info.url.isEmpty() && name.contains(assetPattern, Qt::CaseInsensitive)) {
+                info.url = asset.value("browser_download_url").toString();
+            }
+        }
+
+        // If we found a matching asset in this release, use it
+        if (!info.url.isEmpty()) {
+            QString tagName = releaseObj.value("tag_name").toString();
+            qDebug() << "Found release:" << tagName;
+            break;
+        }
+
+        // Reset for next release
+        checksumsUrl.clear();
+    }
+
+    if (info.url.isEmpty()) {
+        qDebug() << "No matching asset found for pattern:" << assetPattern;
         emit errorOccurred();
         return;
     }
 
-    QJsonObject firstRelease = releases[0].toObject();
-    QJsonObject download = firstRelease.value("download").toObject();
-    info.sha256 = download.value("sha256").toString();
-    info.url = download.value("url").toString();
-
-    qDebug() << "SHA-256:" << info.sha256;
     qDebug() << "URL:" << info.url;
 
+    // Extract the filename from the download URL
     QRegularExpression regex(R"(/([^/]+)\.(exe|dmg|AppImage\.tar)$)");
     QRegularExpressionMatch match = regex.match(info.url);
 
     if (match.hasMatch()) {
         QString os = detectOS();
-        
         info.appName = match.captured(1);
         if (os.startsWith("mac") || os.startsWith("linux")) {
             info.appName += "." + match.captured(2);
@@ -332,7 +383,72 @@ void MudletInstaller::onFetchPlatformFeedFinished() {
         outputFile = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation) + outputFile;
     }
 
-    qDebug() << "OutputFile: " << outputFile;
+    qDebug() << "OutputFile:" << outputFile;
+
+    // Fetch SHA256SUMS.txt if available
+    if (!checksumsUrl.isEmpty()) {
+        qDebug() << "Fetching checksums from:" << checksumsUrl;
+        QNetworkRequest request(QUrl(checksumsUrl));
+        request.setRawHeader("User-Agent", "MudletInstaller");
+        request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
+        currentReply = networkManager.get(request);
+        connect(currentReply, &QNetworkReply::finished, this, &MudletInstaller::onChecksumsFetchFinished);
+    } else {
+        qDebug() << "No SHA256SUMS.txt found, proceeding without hash verification";
+        emit feedFetched();
+    }
+}
+
+
+/**
+ * @brief Called upon receipt of SHA256SUMS.txt from the GitHub release.
+ * Parses the checksums file to find the hash matching our download asset.
+ */
+void MudletInstaller::onChecksumsFetchFinished() {
+    if (currentReply->error() != QNetworkReply::NoError) {
+        qDebug() << "Failed to fetch checksums:" << currentReply->errorString()
+                 << "- proceeding without hash verification";
+        currentReply->deleteLater();
+        emit feedFetched();
+        return;
+    }
+
+    QString checksumData = QString::fromUtf8(currentReply->readAll());
+    currentReply->deleteLater();
+
+    // Extract the filename portion from the download URL
+    QString downloadFilename = QUrl(info.url).fileName();
+
+    // Parse SHA256SUMS.txt lines in format: "hash  filename" or "hash *filename"
+    QStringList lines = checksumData.split('\n', Qt::SkipEmptyParts);
+    QRegularExpression separatorRx(R"([\s*]+)");
+    QRegularExpression hexRx(R"(^[0-9a-fA-F]{64}$)");
+
+    for (const auto &line : lines) {
+        // SHA256 hex digest is 64 characters; look for separator after that
+        int separatorPos = line.indexOf(separatorRx, 64);
+        if (separatorPos <= 0) {
+            continue;
+        }
+
+        QString hash = line.left(separatorPos).trimmed();
+        if (!hexRx.match(hash).hasMatch()) {
+            continue;
+        }
+
+        QString filename = line.mid(separatorPos).trimmed().remove('*');
+
+        if (!downloadFilename.isEmpty() && filename.contains(downloadFilename, Qt::CaseInsensitive)) {
+            info.sha256 = hash;
+            qDebug() << "SHA-256:" << info.sha256;
+            break;
+        }
+    }
+
+    if (info.sha256.isEmpty()) {
+        qDebug() << "No matching checksum found for" << downloadFilename
+                 << "- proceeding without hash verification";
+    }
 
     emit feedFetched();
 }
@@ -405,10 +521,8 @@ void MudletInstaller::onDownloadProgress(qint64 bytesReceived, qint64 bytesTotal
 
 
 /**
- * @brief Verifies the sha256 hash and starts the install process if the hash matches what we got
- * from the dblsqd feed.
- * Called upon completion of the Mudlet installer download.
- * Supports appending to existing file when resuming.
+ * @brief Called upon completion of the Mudlet installer download.
+ * Saves the file and supports appending to existing file when resuming.
  */
 void MudletInstaller::onDownloadFinished() {
     if (currentReply->error() != QNetworkReply::NoError) {
@@ -486,10 +600,17 @@ void MudletInstaller::onDownloadError(QNetworkReply::NetworkError error) {
 
 /**
  * @brief Verify the hash of outputFile with the provided sha256
- * Emits corfresponding hashValid or hashInvalid state signals
- * 
+ * Emits corresponding hashValid or hashInvalid state signals.
+ * If no hash is available, emits hashInvalid with an error message.
  */
 void MudletInstaller::verifyHash() {
+    if (info.sha256.isEmpty()) {
+        qDebug() << "No SHA-256 hash available, cannot verify download integrity";
+        statusLabel->setText("Could not verify download integrity: SHA-256 hash missing from release");
+        emit hashInvalid();
+        return;
+    }
+
     statusLabel->setText("Verifying SHA256...");
     statusLabel->repaint();
     qDebug() << "Verifying hash";
