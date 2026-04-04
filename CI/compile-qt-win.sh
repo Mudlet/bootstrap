@@ -20,7 +20,6 @@ export CMAKE_SUPPRESS_DEVELOPER_WARNINGS=ON
   -nomake tests -nomake examples \
   -skip qt3d -skip qtmultimedia -skip qtdeclarative -skip qtshadertools -skip qtquick -skip designer \
   -no-opengl -no-dbus \
-  -platform win32-g++ \
   -qt-pcre \
   -openssl-linked \
   -- \
@@ -61,7 +60,7 @@ else
             -DCMAKE_INSTALL_PREFIX=${RUNNER_WORKSPACE}/qt-static-install \
             -DBUILD_SHARED_LIBS=OFF \
             -DQT_BUILD_SHARED_LIBS=OFF \
-            -G "MinGW Makefiles"
+            -G Ninja
         cmake --build . --parallel
         cmake --install .
     else
