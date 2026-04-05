@@ -144,6 +144,10 @@ ccache --max-size=10G
 
 # Detect the Qt version installed by pacman so we can build a matching static qtbase
 QT_VERSION=$(pacman -Q "${MINGW_PACKAGE_PREFIX}-qt6-base" | awk '{print $2}' | sed 's/-.*//')
+if [ -z "$QT_VERSION" ]; then
+  echo "ERROR: Could not detect Qt version from pacman"
+  exit 1
+fi
 echo "Detected system Qt version: ${QT_VERSION}"
 echo "QT_VERSION=${QT_VERSION}" >> $GITHUB_ENV
 

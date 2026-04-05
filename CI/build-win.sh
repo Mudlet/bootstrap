@@ -165,8 +165,9 @@ if(NOT TARGET Qt6::BundledPcre2)
     endif()
 endif()
 
-set(Qt6BundledPcre2_VERSION "6.9.1")
+set(Qt6BundledPcre2_VERSION "QT_VERSION_PLACEHOLDER")
 EOF
+    sed -i "s/QT_VERSION_PLACEHOLDER/${QT_VERSION}/" "${QT_CMAKE_DIR}/Qt6BundledPcre2/Qt6BundledPcre2Config.cmake"
     echo "Created Qt6BundledPcre2Config.cmake"
   fi
 
@@ -179,7 +180,7 @@ set(Qt6Bundled${bundled_lib}_FOUND TRUE)
 if(NOT TARGET Qt6::Bundled${bundled_lib})
     add_library(Qt6::Bundled${bundled_lib} INTERFACE IMPORTED)
 endif()
-set(Qt6Bundled${bundled_lib}_VERSION "6.9.1")
+set(Qt6Bundled${bundled_lib}_VERSION "${QT_VERSION}")
 EOF
       echo "Created Qt6Bundled${bundled_lib}Config.cmake"
     fi
