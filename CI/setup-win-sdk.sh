@@ -112,6 +112,8 @@ while true; do
     "${MINGW_PACKAGE_PREFIX}-ninja" \
     "${MINGW_PACKAGE_PREFIX}-pcre2" \
     "${MINGW_PACKAGE_PREFIX}-bzip2" \
+    "${MINGW_PACKAGE_PREFIX}-qt6-tools" \
+    "${MINGW_PACKAGE_PREFIX}-qt6-translations" \
     "${MINGW_PACKAGE_PREFIX}-freetype" \
     "${MINGW_PACKAGE_PREFIX}-harfbuzz" \
     "${MINGW_PACKAGE_PREFIX}-libjpeg-turbo" \
@@ -139,6 +141,11 @@ ccache --max-size=10G
 
 #echo "=== Listing Environment Variables ==="
 #printenv
+
+# Detect the Qt version installed by pacman so we can build a matching static qtbase
+QT_VERSION=$(pacman -Q "${MINGW_PACKAGE_PREFIX}-qt6-base" | awk '{print $2}' | sed 's/-.*//')
+echo "Detected system Qt version: ${QT_VERSION}"
+echo "QT_VERSION=${QT_VERSION}" >> $GITHUB_ENV
 
 echo "Debugging libbz2 symbols"
 echo "BZ2 library:"
