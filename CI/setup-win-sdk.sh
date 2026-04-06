@@ -50,30 +50,14 @@
 # 7 - One of more packages failed to install
 
 
-if [ "${MSYSTEM}" = "MINGW64" ]; then
-  export BUILD_BITNESS="64"
-  export BUILDCOMPONENT="x86_64"
-elif [ "${MSYSTEM}" = "MSYS" ]; then
-  echo "Please run this script from an MINGW32 or MINGW64 type bash terminal appropriate"
-  echo "to the bitness you want to work on. You may do this once for each of them should"
-  echo "you wish to do both."
-  exit 2
-else
-  echo "This script is not set up to handle systems of type ${MSYSTEM}, only MINGW32 or"
-  echo "MINGW64 are currently supported. Please rerun this in a bash terminal of one"
-  echo "of those two types."
+if [ "${MSYSTEM}" != "CLANG64" ]; then
+  echo "Please run this script from a CLANG64 type bash terminal."
+  echo "Current MSYSTEM is: ${MSYSTEM}"
   exit 2
 fi
 
-# We use this internally - but it is actually the same as ${MINGW_PREFIX}
-export MINGW_BASE_DIR=$MSYSTEM_PREFIX
-# A more compact - but not necessarily understood by other than MSYS/MINGW
-# executables - path:
-export MINGW_INTERNAL_BASE_DIR="/mingw${BUILD_BITNESS}"
-#
-# FIXME: don't add duplicates but rearrange instead to put them in the "right" order:
-#
-export PATH="${MINGW_INTERNAL_BASE_DIR}/usr/local/bin:${MINGW_INTERNAL_BASE_DIR}/bin:/usr/bin:${PATH}"
+export MINGW_BASE_DIR="${MSYSTEM_PREFIX}"
+export PATH="${MINGW_BASE_DIR}/usr/local/bin:${MINGW_BASE_DIR}/bin:/usr/bin:${PATH}"
 echo "MSYSTEM is: ${MSYSTEM}"
 echo "PATH is now: ${PATH}"
 echo ""
@@ -118,27 +102,27 @@ while true; do
     perl \
     bison \
     flex \
-    "mingw-w64-${BUILDCOMPONENT}-ccache" \
-    "mingw-w64-${BUILDCOMPONENT}-ntldd" \
-    "mingw-w64-${BUILDCOMPONENT}-toolchain" \
-    "mingw-w64-${BUILDCOMPONENT}-zlib" \
-    "mingw-w64-${BUILDCOMPONENT}-icu" \
-    "mingw-w64-${BUILDCOMPONENT}-openssl" \
-    "mingw-w64-${BUILDCOMPONENT}-cmake" \
-    "mingw-w64-${BUILDCOMPONENT}-ninja" \
-    "mingw-w64-${BUILDCOMPONENT}-pcre2" \
-    "mingw-w64-${BUILDCOMPONENT}-bzip2" \
-    "mingw-w64-${BUILDCOMPONENT}-qt6-tools" \
-    "mingw-w64-${BUILDCOMPONENT}-qt6-translations" \
-    "mingw-w64-${BUILDCOMPONENT}-freetype" \
-    "mingw-w64-${BUILDCOMPONENT}-harfbuzz" \
-    "mingw-w64-${BUILDCOMPONENT}-libjpeg-turbo" \
-    "mingw-w64-${BUILDCOMPONENT}-libpng" \
-    "mingw-w64-${BUILDCOMPONENT}-zstd" \
-    "mingw-w64-${BUILDCOMPONENT}-libb2" \
-    "mingw-w64-${BUILDCOMPONENT}-brotli" \
-    "mingw-w64-${BUILDCOMPONENT}-graphite2" \
-    "mingw-w64-${BUILDCOMPONENT}-gettext"; then
+    "${MINGW_PACKAGE_PREFIX}-ccache" \
+    "${MINGW_PACKAGE_PREFIX}-ntldd" \
+    "${MINGW_PACKAGE_PREFIX}-toolchain" \
+    "${MINGW_PACKAGE_PREFIX}-zlib" \
+    "${MINGW_PACKAGE_PREFIX}-icu" \
+    "${MINGW_PACKAGE_PREFIX}-openssl" \
+    "${MINGW_PACKAGE_PREFIX}-cmake" \
+    "${MINGW_PACKAGE_PREFIX}-ninja" \
+    "${MINGW_PACKAGE_PREFIX}-pcre2" \
+    "${MINGW_PACKAGE_PREFIX}-bzip2" \
+    "${MINGW_PACKAGE_PREFIX}-qt6-tools" \
+    "${MINGW_PACKAGE_PREFIX}-qt6-translations" \
+    "${MINGW_PACKAGE_PREFIX}-freetype" \
+    "${MINGW_PACKAGE_PREFIX}-harfbuzz" \
+    "${MINGW_PACKAGE_PREFIX}-libjpeg-turbo" \
+    "${MINGW_PACKAGE_PREFIX}-libpng" \
+    "${MINGW_PACKAGE_PREFIX}-zstd" \
+    "${MINGW_PACKAGE_PREFIX}-libb2" \
+    "${MINGW_PACKAGE_PREFIX}-brotli" \
+    "${MINGW_PACKAGE_PREFIX}-graphite2" \
+    "${MINGW_PACKAGE_PREFIX}-gettext"; then
       break
   fi
 
@@ -158,12 +142,21 @@ ccache --max-size=10G
 #echo "=== Listing Environment Variables ==="
 #printenv
 
+# Detect the Qt version installed by pacman so we can build a matching static qtbase
+QT_VERSION=$(pacman -Q "${MINGW_PACKAGE_PREFIX}-qt6-base" | awk '{print $2}' | sed 's/-.*//')
+if [ -z "$QT_VERSION" ]; then
+  echo "ERROR: Could not detect Qt version from pacman"
+  exit 1
+fi
+echo "Detected system Qt version: ${QT_VERSION}"
+echo "QT_VERSION=${QT_VERSION}" >> $GITHUB_ENV
+
 echo "Debugging libbz2 symbols"
 echo "BZ2 library:"
-find /mingw64/lib -name "*bz2*" -type f
+find ${MSYSTEM_PREFIX}/lib -name "*bz2*" -type f
 echo "PCRE2 library:"
-find /mingw64/lib -name "*pcre2*" -type f
+find ${MSYSTEM_PREFIX}/lib -name "*pcre2*" -type f
 echo "Freetype library:"
-find /mingw64/lib -name "*freetype*" -type f
+find ${MSYSTEM_PREFIX}/lib -name "*freetype*" -type f
 
 exit 0
