@@ -84,6 +84,8 @@ jobs:
 
     - name: (Linux, macOS) Build Qt StateMachine Module
       if: runner.os == 'Linux' || runner.os == 'macOS'
+      env:
+        QT_VERSION: ${{matrix.qt}}
       run: |
         # Make the build script executable and run it
         chmod +x ./CI/build-qt-statemachine.sh
@@ -93,7 +95,7 @@ jobs:
       if: runner.os == 'Windows'
       uses: msys2/setup-msys2@v2
       with:
-        msystem: MINGW64
+        msystem: CLANG64
         update: true
     
     - name: (Windows) Build Environment Setup
@@ -109,7 +111,7 @@ jobs:
       uses: actions/cache/restore@v5
       with:
         path: ${{env.QT_ROOT}}
-        key: qt
+        key: qt-clang-${{env.QT_VERSION}}
 
     - name: (Windows) Compile Qt
       if: runner.os == 'Windows' && steps.restore-qt.outputs.cache-hit != 'true'

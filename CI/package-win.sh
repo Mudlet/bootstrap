@@ -45,23 +45,13 @@
 # 4 - Directory to be used to assemble the package is NOT empty
 # 6 - No Mudlet.exe file found to work with
 
-if [ "${MSYSTEM}" = "MSYS" ]; then
-  echo "Please run this script from an MINGW32 or MINGW64 type bash terminal appropriate"
-  echo "to the bitness you want to work on. You may do this once for each of them should"
-  echo "you wish to do both."
-  exit 2
-elif [ "${MSYSTEM}" = "MINGW64" ]; then
-  export BUILD_BITNESS="64"
-else
-  echo "This script is not set up to handle systems of type ${MSYSTEM}, only MINGW32 or"
-  echo "MINGW64 are currently supported. Please rerun this in a bash terminal of one"
-  echo "of those two types."
+if [ "${MSYSTEM}" != "CLANG64" ]; then
+  echo "Please run this script from a CLANG64 type bash terminal."
+  echo "Current MSYSTEM is: ${MSYSTEM}"
   exit 2
 fi
 
 BUILD_CONFIG="release"
-MINGW_INTERNAL_BASE_DIR="/mingw${BUILD_BITNESS}"
-export MINGW_INTERNAL_BASE_DIR
 GITHUB_WORKSPACE_UNIX_PATH=$(echo ${GITHUB_WORKSPACE} | sed 's|\\|/|g' | sed 's|D:|/d|g')
 
 echo "MSYSTEM is: ${MSYSTEM}"
@@ -132,9 +122,9 @@ while IFS= read -r line || [[ -n "$line" ]]; do
   echo ""
   #echo "Examining MudletInstaller application to identify other needed libraries..."
 
-  #  NEEDED_LIBS=$("${MINGW_INTERNAL_BASE_DIR}/bin/ntldd" --recursive ./MudletInstaller.exe \
+  #  NEEDED_LIBS=$("${MSYSTEM_PREFIX}/bin/ntldd" --recursive ./MudletInstaller.exe \
   #    | /usr/bin/grep -v "Qt6" \
-  #    | /usr/bin/grep -i "mingw" \
+  #    | /usr/bin/grep -i "clang64" \
   #    | /usr/bin/cut -d ">" -f2 \
   #    | /usr/bin/cut -d "(" -f1 \
   #    | /usr/bin/sort)

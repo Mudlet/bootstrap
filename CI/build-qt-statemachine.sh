@@ -8,7 +8,7 @@ set -e
 echo "=== Building Qt ScXML Module from Source ==="
 
 # Set variables
-QT_STATEMACHINE_VERSION="6.9.1"
+QT_STATEMACHINE_VERSION="${QT_VERSION}"
 WORKSPACE_DIR="${RUNNER_WORKSPACE:-$HOME/bootstrap}"
 QT_DIR="${WORKSPACE_DIR}/Qt/${QT_STATEMACHINE_VERSION}/$(uname | tr '[:upper:]' '[:lower:]')_$(uname -m)"
 
@@ -29,9 +29,10 @@ cd "$BUILD_DIR"
 
 # Download Qt SCXML source from official Qt releases
 echo "=== Downloading Qt SCXML source from official releases ==="
-SCXML_URL="https://download.qt.io/official_releases/qt/6.9/6.9.1/submodules/qtscxml-everywhere-src-6.9.1.tar.xz"
+QT_MINOR="${QT_VERSION%.*}"
+SCXML_URL="https://download.qt.io/official_releases/qt/${QT_MINOR}/${QT_VERSION}/submodules/qtscxml-everywhere-src-${QT_VERSION}.tar.xz"
 
-if [[ ! -f "qtscxml-everywhere-src-6.9.1.tar.xz" ]]; then
+if [[ ! -f "qtscxml-everywhere-src-${QT_VERSION}.tar.xz" ]]; then
     echo "Downloading $SCXML_URL"
     wget -q "$SCXML_URL" || {
         echo "Failed to download Qt SCXML source"
@@ -41,11 +42,11 @@ fi
 
 # Extract the source
 echo "=== Extracting Qt SCXML source ==="
-if [[ ! -d "qtscxml-everywhere-src-6.9.1" ]]; then
-    tar xf qtscxml-everywhere-src-6.9.1.tar.xz
+if [[ ! -d "qtscxml-everywhere-src-${QT_VERSION}" ]]; then
+    tar xf "qtscxml-everywhere-src-${QT_VERSION}.tar.xz"
 fi
 
-cd qtscxml-everywhere-src-6.9.1
+cd "qtscxml-everywhere-src-${QT_VERSION}"
 
 # Configure
 echo "=== Configuring Qt ScXML build ==="

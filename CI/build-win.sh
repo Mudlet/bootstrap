@@ -40,27 +40,14 @@
 # 2 - Unsupported MSYS2/MINGGW shell type
 # 3 - Unsupported build type
 
-if [ "${MSYSTEM}" = "MSYS" ]; then
-  echo "Please run this script from an MINGW32 or MINGW64 type bash terminal appropriate"
-  echo "to the bitness you want to work on. You may do this once for each of them should"
-  echo "you wish to do both."
-  exit 2
-elif [ "${MSYSTEM}" = "MINGW64" ]; then
-  export BUILD_BITNESS="64"
-else
-  echo "This script is not set up to handle systems of type ${MSYSTEM}, only MINGW32 or"
-  echo "MINGW64 are currently supported. Please rerun this in a bash terminal of one"
-  echo "of those two types."
+if [ "${MSYSTEM}" != "CLANG64" ]; then
+  echo "Please run this script from a CLANG64 type bash terminal."
+  echo "Current MSYSTEM is: ${MSYSTEM}"
   exit 2
 fi
 
-
-MINGW_BASE_DIR="${GHCUP_MSYS2}\mingw32"
-export MINGW_BASE_DIR
-MINGW_INTERNAL_BASE_DIR="/mingw${BUILD_BITNESS}"
-export MINGW_INTERNAL_BASE_DIR
-PATH="${MINGW_INTERNAL_BASE_DIR}/usr/local/bin:${MINGW_INTERNAL_BASE_DIR}/bin:/usr/bin:${PATH}"
-export PATH
+export MINGW_BASE_DIR="${MSYSTEM_PREFIX}"
+export PATH="${MINGW_BASE_DIR}/usr/local/bin:${MINGW_BASE_DIR}/bin:/usr/bin:${PATH}"
 RUNNER_WORKSPACE_UNIX_PATH=$(echo "${RUNNER_WORKSPACE}" | sed 's|\\|/|g' | sed 's|D:|/d|g')
 export CCACHE_DIR=${RUNNER_WORKSPACE_UNIX_PATH}/ccache
 
@@ -76,7 +63,7 @@ LAUNCH_INI_PATH="${GITHUB_WORKSPACE}/resources/launch.ini"
 Qt6_PREFIX=${RUNNER_WORKSPACE}/qt-static-install
 QT_DIR=${Qt6_PREFIX}/lib/cmake/Qt6
 export QT_DIR
-QT_LINGUIST_DIR=$(cygpath -w /mingw64/lib/cmake/Qt6LinguistTools)
+QT_LINGUIST_DIR=$(cygpath -w ${MSYSTEM_PREFIX}/lib/cmake/Qt6LinguistTools)
 echo "Qt6_PREFIX is: ${Qt6_PREFIX}"
 echo "QT_DIR is: ${QT_DIR}"
 echo "QT_LINGUIST_DIR is: ${QT_LINGUIST_DIR}"
@@ -110,8 +97,7 @@ while IFS= read -r line || [[ -n "$line" ]]; do
     echo "Found Qt6LinguistToolsConfig.cmake at: ${QT_LINGUIST_DIR}/Qt6LinguistToolsConfig.cmake"
   else
     echo "ERROR: Qt6LinguistToolsConfig.cmake not found at: ${QT_LINGUIST_DIR}/Qt6LinguistToolsConfig.cmake"
-    # Try to find it in system installation
-    find "/mingw64" -name "Qt6LinguistToolsConfig.cmake" -type f 2>/dev/null
+    find "${MSYSTEM_PREFIX}" -name "Qt6LinguistToolsConfig.cmake" -type f 2>/dev/null
     exit 1
   fi
 
@@ -121,13 +107,13 @@ while IFS= read -r line || [[ -n "$line" ]]; do
 
   # Debug: Check what PCRE2 libraries are available
   echo "Checking for PCRE2 libraries..."
-  find /mingw64/lib -name "*pcre*" -type f 2>/dev/null | head -5
+  find ${MSYSTEM_PREFIX}/lib -name "*pcre*" -type f 2>/dev/null | head -5
   find "${RUNNER_WORKSPACE}/qt-static-install" -name "*pcre*" -type f 2>/dev/null | head -5
 
   # Find the actual PCRE2 library path
-  PCRE2_LIB_PATH=$(find /mingw64/lib -name "libpcre2-16.a" -type f | head -1)
+  PCRE2_LIB_PATH=$(find ${MSYSTEM_PREFIX}/lib -name "libpcre2-16.a" -type f | head -1)
   if [ -z "$PCRE2_LIB_PATH" ]; then
-    PCRE2_LIB_PATH=$(find /mingw64/lib -name "*pcre2*" -type f | head -1)
+    PCRE2_LIB_PATH=$(find ${MSYSTEM_PREFIX}/lib -name "*pcre2*" -type f | head -1)
   fi
   echo "Found PCRE2 library at: $PCRE2_LIB_PATH"
 
@@ -153,8 +139,7 @@ if(NOT TARGET Qt6::BundledPcre2)
         find_library(QT_BUNDLED_PCRE2_LIB
             NAMES pcre2-16 libpcre2-16
             PATHS
-                "/mingw64/lib"
-                "C:/a/_temp/msys64/mingw64/lib"
+                "$ENV{MSYSTEM_PREFIX}/lib"
             NO_DEFAULT_PATH
         )
     endif()
@@ -180,8 +165,9 @@ if(NOT TARGET Qt6::BundledPcre2)
     endif()
 endif()
 
-set(Qt6BundledPcre2_VERSION "6.9.1")
+set(Qt6BundledPcre2_VERSION "QT_VERSION_PLACEHOLDER")
 EOF
+    sed -i "s/QT_VERSION_PLACEHOLDER/${QT_VERSION}/" "${QT_CMAKE_DIR}/Qt6BundledPcre2/Qt6BundledPcre2Config.cmake"
     echo "Created Qt6BundledPcre2Config.cmake"
   fi
 
@@ -194,7 +180,7 @@ set(Qt6Bundled${bundled_lib}_FOUND TRUE)
 if(NOT TARGET Qt6::Bundled${bundled_lib})
     add_library(Qt6::Bundled${bundled_lib} INTERFACE IMPORTED)
 endif()
-set(Qt6Bundled${bundled_lib}_VERSION "6.9.1")
+set(Qt6Bundled${bundled_lib}_VERSION "${QT_VERSION}")
 EOF
       echo "Created Qt6Bundled${bundled_lib}Config.cmake"
     fi
@@ -207,8 +193,7 @@ EOF
     -DCMAKE_BUILD_TYPE=Release \
     -DCMAKE_PREFIX_PATH="$(cygpath -w $Qt6_PREFIX)" \
     -DQt6LinguistTools_DIR="${QT_LINGUIST_DIR}" \
-    -DQt6BundledPcre2_DIR="$(cygpath -w /a/_temp/msys64/mingw64/lib/cmake/Qt6)" \
-    -DCMAKE_IGNORE_PATH="/a/_temp/msys64/mingw64/lib/cmake/Qt6" \
+    -DCMAKE_IGNORE_PATH="${MSYSTEM_PREFIX}/lib/cmake/Qt6" \
     ..
 
   if [ $? -ne 0 ]; then

@@ -1,8 +1,8 @@
 #!/bin/bash
 
-echo "=== Cloning Qt Source Repository ==="
+echo "=== Cloning Qt Source Repository (v${QT_VERSION}) ==="
 cd ${RUNNER_WORKSPACE}
-git clone --branch v6.9.1 --depth 1 --no-recurse-submodules https://github.com/qt/qt5.git qt6-source
+git clone --branch v${QT_VERSION} --depth 1 --no-recurse-submodules https://github.com/qt/qt5.git qt6-source
 cd qt6-source
 git submodule update --init qtbase
 
@@ -20,7 +20,6 @@ export CMAKE_SUPPRESS_DEVELOPER_WARNINGS=ON
   -nomake tests -nomake examples \
   -skip qt3d -skip qtmultimedia -skip qtdeclarative -skip qtshadertools -skip qtquick -skip designer \
   -no-opengl -no-dbus \
-  -platform win32-g++ \
   -qt-pcre \
   -openssl-linked \
   -- \
@@ -47,13 +46,14 @@ else
     cd qt-scxml-build
     
     # Try downloading from Qt's additional libraries (this may or may not work)
-    wget -q https://download.qt.io/official_releases/qt/6.9/6.9.1/submodules/qtscxml-everywhere-src-6.9.1.tar.xz || \
+    QT_MINOR="${QT_VERSION%.*}"
+    wget -q "https://download.qt.io/official_releases/qt/${QT_MINOR}/${QT_VERSION}/submodules/qtscxml-everywhere-src-${QT_VERSION}.tar.xz" || \
     echo "Could not download ScXML from additional libraries"
-    
-    if [[ -f qtscxml-everywhere-src-6.9.1.tar.xz ]]; then
+
+    if [[ -f "qtscxml-everywhere-src-${QT_VERSION}.tar.xz" ]]; then
         echo "Found ScXML source, building..."
-        tar xf qtscxml-everywhere-src-6.9.1.tar.xz
-        cd qtscxml-everywhere-src-6.9.1
+        tar xf "qtscxml-everywhere-src-${QT_VERSION}.tar.xz"
+        cd "qtscxml-everywhere-src-${QT_VERSION}"
         mkdir build && cd build
         cmake .. \
             -DCMAKE_BUILD_TYPE=Release \
@@ -61,7 +61,7 @@ else
             -DCMAKE_INSTALL_PREFIX=${RUNNER_WORKSPACE}/qt-static-install \
             -DBUILD_SHARED_LIBS=OFF \
             -DQT_BUILD_SHARED_LIBS=OFF \
-            -G "MinGW Makefiles"
+            -G Ninja
         cmake --build . --parallel
         cmake --install .
     else

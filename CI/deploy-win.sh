@@ -29,19 +29,9 @@
 # 4 - nuget error
 # 5 - squirrel error
 
-if [ "${MSYSTEM}" = "MSYS" ]; then
-  echo "Please run this script from an MINGW32 or MINGW64 type bash terminal appropriate"
-  echo "to the bitness you want to work on. You may do this once for each of them should"
-  echo "you wish to do both."
-  exit 2
-elif [ "${MSYSTEM}" = "MINGW64" ]; then
-  export BUILD_BITNESS="64"
-  export BUILDCOMPONENT="x86_64"
-  export ARCH="x86"
-else
-  echo "This script is not set up to handle systems of type ${MSYSTEM}, only MINGW32 or"
-  echo "MINGW64 are currently supported. Please rerun this in a bash terminal of one"
-  echo "of those two types."
+if [ "${MSYSTEM}" != "CLANG64" ]; then
+  echo "Please run this script from a CLANG64 type bash terminal."
+  echo "Current MSYSTEM is: ${MSYSTEM}"
   exit 2
 fi
 
