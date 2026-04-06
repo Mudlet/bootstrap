@@ -84,6 +84,8 @@ jobs:
 
     - name: (Linux, macOS) Build Qt StateMachine Module
       if: runner.os == 'Linux' || runner.os == 'macOS'
+      env:
+        QT_VERSION: ${{matrix.qt}}
       run: |
         # Make the build script executable and run it
         chmod +x ./CI/build-qt-statemachine.sh
