@@ -847,46 +847,46 @@ void MudletInstaller::installApplication() {
     // Read the profile from the .ini file
     QString launchProfile = readLaunchProfileFromResource();
     if (launchProfile.isEmpty()) {
-        qDebug() << "No launch profile found. Using default.";
+        qDebug() << "No launch profile found, skipping autologin file creation...";
     } else {
         // Pass along the launch profile to the environment
         env.insert("MUDLET_PROFILES", launchProfile);
-    }
 
-    // Create autologin file for the wanted profile
-    QString confDirDefault = QDir::homePath() + 
-        QDir::separator() + ".config" +
-        QDir::separator() + "mudlet" +
-        QDir::separator() + "profiles" + 
-        QDir::separator() + launchProfile;
-    QDir configDir;
-    if (!configDir.mkpath(confDirDefault)) {
-        qDebug() << "Failed to create config directory:" << confDirDefault;
-    } else {
-        // Create the autologin file
-        QString autologinFilePath = confDirDefault + QDir::separator() + "autologin";
-        QFile autologinFile(autologinFilePath);
-
-        // A constant equivalent to QDataStream::Qt_5_12 needed in several places
-        // which can't be pulled from Qt as it is not going to be defined for older
-        // versions:
-        static const int scmQDataStreamFormat_5_12 = 18;
-
-        if (autologinFile.open(QIODevice::WriteOnly)) {
-            QDataStream out(&autologinFile);
-            
-            // Set the same data stream version that Mudlet uses for reading
-            if (QVersionNumber::fromString(qVersion()) >= QVersionNumber(5, 13, 0)) {
-                out.setVersion(scmQDataStreamFormat_5_12);
-            }
-
-            QString autologinData = QString::number(Qt::Checked);
-            out << autologinData;
-            
-            autologinFile.close();
-            qDebug() << "Autologin file created successfully:" << autologinFilePath;
+        // Create autologin file for the wanted profile
+        QString confDirDefault = QDir::homePath() + 
+            QDir::separator() + ".config" +
+            QDir::separator() + "mudlet" +
+            QDir::separator() + "profiles" + 
+            QDir::separator() + launchProfile;
+        QDir configDir;
+        if (!configDir.mkpath(confDirDefault)) {
+            qDebug() << "Failed to create config directory:" << confDirDefault;
         } else {
-            qWarning() << "Failed to create autologin file:" << autologinFilePath << autologinFile.errorString();
+            // Create the autologin file
+            QString autologinFilePath = confDirDefault + QDir::separator() + "autologin";
+            QFile autologinFile(autologinFilePath);
+
+            // A constant equivalent to QDataStream::Qt_5_12 needed in several places
+            // which can't be pulled from Qt as it is not going to be defined for older
+            // versions:
+            static const int scmQDataStreamFormat_5_12 = 18;
+
+            if (autologinFile.open(QIODevice::WriteOnly)) {
+                QDataStream out(&autologinFile);
+                
+                // Set the same data stream version that Mudlet uses for reading
+                if (QVersionNumber::fromString(qVersion()) >= QVersionNumber(5, 13, 0)) {
+                    out.setVersion(scmQDataStreamFormat_5_12);
+                }
+
+                QString autologinData = QString::number(Qt::Checked);
+                out << autologinData;
+                
+                autologinFile.close();
+                qDebug() << "Autologin file created successfully:" << autologinFilePath;
+            } else {
+                qWarning() << "Failed to create autologin file:" << autologinFilePath << autologinFile.errorString();
+            }
         }
     }
 
