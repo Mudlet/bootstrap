@@ -262,9 +262,9 @@ void MudletInstaller::fetchPlatformFeed() {
 
     // Use per_page=10 for PTB (need to scan prereleases), per_page=100 for stable
     bool isPTB = (releaseType == "PTB");
-    QString feedUrl = QString("https://api.github.com/repos/Mudlet/Mudlet/releases").arg(perPage);
+    QString feedUrl = QString("https://api.github.com/repos/Mudlet/Mudlet/releases");
 
-    QNetworkRequest request(QUrl(feedUrl));
+    QNetworkRequest request{QUrl(feedUrl)};
     request.setRawHeader("Accept", "application/vnd.github+json");
     request.setRawHeader("User-Agent", "MudletInstaller");
     request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
@@ -387,7 +387,7 @@ void MudletInstaller::onFetchPlatformFeedFinished() {
     // Fetch SHA256SUMS.txt if available
     if (!checksumsUrl.isEmpty()) {
         qDebug() << "Fetching checksums from:" << checksumsUrl;
-        QNetworkRequest request(QUrl(checksumsUrl));
+        QNetworkRequest request{QUrl(checksumsUrl)};
         request.setRawHeader("User-Agent", "MudletInstaller");
         request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::NoLessSafeRedirectPolicy);
         currentReply = networkManager.get(request);
