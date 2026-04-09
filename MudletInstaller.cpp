@@ -27,7 +27,7 @@ QString buildAssetPattern(const QString &os) {
     if (os == "linux/x86_64") {
         return "-linux-x64.AppImage.tar";
     } else if (os == "win/x86_64" || os == "win/x86") {
-        return "-windows-64-installer.exe";
+        return "-windows-64.exe";
     } else if (os == "mac/arm") {
         return "-arm64.dmg";
     } else if (os == "mac/x86_64") {
@@ -247,10 +247,6 @@ void MudletInstaller::start() {
  * @brief Query GitHub Releases API for the latest Mudlet release
  */
 void MudletInstaller::fetchPlatformFeed() {
-
-    QSettings settings(":/resources/launch.ini", QSettings::IniFormat);
-    QString releaseType = settings.value("Settings/RELEASE_TYPE", "").toString();
-
     QString os = detectOS();
     assetPattern = buildAssetPattern(os);
 
@@ -260,8 +256,6 @@ void MudletInstaller::fetchPlatformFeed() {
         return;
     }
 
-    // Use per_page=10 for PTB (need to scan prereleases), per_page=100 for stable
-    bool isPTB = (releaseType == "PTB");
     QString feedUrl = QString("https://api.github.com/repos/Mudlet/Mudlet/releases");
 
     QNetworkRequest request{QUrl(feedUrl)};
@@ -305,49 +299,72 @@ void MudletInstaller::onFetchPlatformFeedFinished() {
 
     QSettings settings(":/resources/launch.ini", QSettings::IniFormat);
     QString releaseType = settings.value("Settings/RELEASE_TYPE", "").toString();
-    bool isPTB = (releaseType == "PTB");
+    bool wantPTB = (releaseType == "PTB");
 
     QJsonArray releasesArray = doc.array();
     QString checksumsUrl;
 
+    qDebug() << "Feed contains" << releasesArray.size() << "releases";
+    qDebug() << "Looking for asset pattern:" << assetPattern << "(wantPTB:" << wantPTB << ")";
+
+    int releaseIndex = 0;
     for (const auto &val : releasesArray) {
         QJsonObject releaseObj = val.toObject();
 
+        QString tagName = releaseObj.value("tag_name").toString();
+        bool isPrerelease = releaseObj.value("prerelease").toBool();
+        bool isDraft = releaseObj.value("draft").toBool();
+
+        qDebug() << "Release[" << releaseIndex << "]:" << tagName
+                 << "prerelease:" << isPrerelease
+                 << "draft:" << isDraft;
+
         // Filter - PTB: prerelease=true, Release: prerelease=false
-        if (isPTB != releaseObj.value("prerelease").toBool()) {
+        if (wantPTB != isPrerelease) {
+            qDebug() << "  Skipping: prerelease mismatch (want" << wantPTB << "got" << isPrerelease << ")";
+            releaseIndex++;
             continue;
         }
         // Skip drafts
-        if (releaseObj.value("draft").toBool()) {
+        if (isDraft) {
+            qDebug() << "  Skipping: draft release";
+            releaseIndex++;
             continue;
         }
 
         QJsonArray assets = releaseObj.value("assets").toArray();
+        qDebug() << "  Scanning" << assets.size() << "assets";
 
         // Search assets for binary and SHA256SUMS.txt
         for (const auto &assetVal : assets) {
             QJsonObject asset = assetVal.toObject();
             QString name = asset.value("name").toString();
 
+            qDebug() << "    Asset:" << name;
+
             if (name == "SHA256SUMS.txt") {
                 checksumsUrl = asset.value("browser_download_url").toString();
+                qDebug() << "    -> Found checksums URL:" << checksumsUrl;
                 continue;
             }
 
             if (info.url.isEmpty() && name.contains(assetPattern, Qt::CaseInsensitive)) {
                 info.url = asset.value("browser_download_url").toString();
+                qDebug() << "    -> Matched asset pattern! URL:" << info.url;
             }
         }
 
         // If we found a matching asset in this release, use it
         if (!info.url.isEmpty()) {
-            QString tagName = releaseObj.value("tag_name").toString();
-            qDebug() << "Found release:" << tagName;
+            qDebug() << "Found matching release:" << tagName;
             break;
         }
 
+        qDebug() << "  No matching asset in this release, continuing...";
+
         // Reset for next release
         checksumsUrl.clear();
+        releaseIndex++;
     }
 
     if (info.url.isEmpty()) {
@@ -357,15 +374,15 @@ void MudletInstaller::onFetchPlatformFeedFinished() {
     }
 
     qDebug() << "URL:" << info.url;
+    QString osStr = detectOS();
 
     // Extract the filename from the download URL
     QRegularExpression regex(R"(/([^/]+)\.(exe|dmg|AppImage\.tar)$)");
     QRegularExpressionMatch match = regex.match(info.url);
 
     if (match.hasMatch()) {
-        QString os = detectOS();
         info.appName = match.captured(1);
-        if (os.startsWith("mac") || os.startsWith("linux")) {
+        if (osStr.startsWith("mac") || osStr.startsWith("linux")) {
             info.appName += "." + match.captured(2);
         }
     } else {
@@ -376,7 +393,6 @@ void MudletInstaller::onFetchPlatformFeedFinished() {
 
     outputFile = info.appName;
 
-    QString osStr = detectOS();
     // Mac may have an issue downloading a file into the .app directory
     if (osStr.startsWith("mac")) {
         outputFile = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation) + outputFile;
