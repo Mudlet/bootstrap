@@ -262,8 +262,7 @@ void MudletInstaller::fetchPlatformFeed() {
 
     // Use per_page=10 for PTB (need to scan prereleases), per_page=100 for stable
     bool isPTB = (releaseType == "PTB");
-    int perPage = isPTB ? 10 : 100;
-    QString feedUrl = QString("https://api.github.com/repos/Mudlet/Mudlet/releases?per_page=%1").arg(perPage);
+    QString feedUrl = QString("https://api.github.com/repos/Mudlet/Mudlet/releases").arg(perPage);
 
     QNetworkRequest request(QUrl(feedUrl));
     request.setRawHeader("Accept", "application/vnd.github+json");
@@ -314,7 +313,7 @@ void MudletInstaller::onFetchPlatformFeedFinished() {
     for (const auto &val : releasesArray) {
         QJsonObject releaseObj = val.toObject();
 
-        // Filter: PTB = prereleases only, stable = non-prereleases only
+        // Filter - PTB: prerelease=true, Release: prerelease=false
         if (isPTB != releaseObj.value("prerelease").toBool()) {
             continue;
         }
@@ -325,7 +324,7 @@ void MudletInstaller::onFetchPlatformFeedFinished() {
 
         QJsonArray assets = releaseObj.value("assets").toArray();
 
-        // Search assets for our platform binary and SHA256SUMS.txt
+        // Search assets for binary and SHA256SUMS.txt
         for (const auto &assetVal : assets) {
             QJsonObject asset = assetVal.toObject();
             QString name = asset.value("name").toString();
