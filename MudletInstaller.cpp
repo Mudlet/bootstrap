@@ -16,6 +16,7 @@
 #include <QJsonArray>
 #include <QMap>
 #include <QStandardPaths>
+#include <QMessageBox>
 #include <QTimer>
 #include <QVersionNumber>
 
@@ -250,8 +251,13 @@ void MudletInstaller::fetchPlatformFeed() {
     QString os = detectOS();
     assetPattern = buildAssetPattern(os);
 
+    m_diagnosticLog.clear();
+    m_diagnosticLog << QString("Platform: %1").arg(os);
+    m_diagnosticLog << QString("Asset pattern: %1").arg(assetPattern.isEmpty() ? "(none — unsupported platform)" : assetPattern);
+
     if (assetPattern.isEmpty()) {
         qDebug() << "No asset pattern found for platform:" << os;
+        m_diagnosticLog << "Error: Unsupported platform, cannot determine asset filename.";
         emit errorOccurred();
         return;
     }
@@ -300,6 +306,7 @@ void MudletInstaller::onFetchPlatformFeedFinished() {
     QSettings settings(":/resources/launch.ini", QSettings::IniFormat);
     QString releaseType = settings.value("Settings/RELEASE_TYPE", "").toString();
     bool wantPTB = (releaseType == "PTB");
+    m_diagnosticLog << QString("Release type: %1").arg(wantPTB ? "PTB (pre-release)" : "Stable");
 
     QJsonArray releasesArray = doc.array();
     QString checksumsUrl;
@@ -357,6 +364,13 @@ void MudletInstaller::onFetchPlatformFeedFinished() {
         // If we found a matching asset in this release, use it
         if (!info.url.isEmpty()) {
             qDebug() << "Found matching release:" << tagName;
+            m_diagnosticLog << QString("Matched release: %1").arg(tagName);
+            m_diagnosticLog << QString("Download URL: %1").arg(info.url);
+            if (!checksumsUrl.isEmpty()) {
+                m_diagnosticLog << QString("Checksums URL: %1").arg(checksumsUrl);
+            } else {
+                m_diagnosticLog << "Checksums URL: (not found in release assets)";
+            }
             break;
         }
 
@@ -369,6 +383,8 @@ void MudletInstaller::onFetchPlatformFeedFinished() {
 
     if (info.url.isEmpty()) {
         qDebug() << "No matching asset found for pattern:" << assetPattern;
+        m_diagnosticLog << QString("Error: No release asset found matching pattern \"%1\".").arg(assetPattern);
+        statusLabel->setText(QString("No download found for this platform (%1)").arg(assetPattern));
         emit errorOccurred();
         return;
     }
@@ -433,12 +449,14 @@ void MudletInstaller::onChecksumsFetchFinished() {
 
     // Extract the filename portion from the download URL
     QString downloadFilename = QUrl(info.url).fileName();
+    m_diagnosticLog << QString("Searching SHA256SUMS.txt for: %1").arg(downloadFilename);
 
     // Parse SHA256SUMS.txt lines in format: "hash  filename" or "hash *filename"
     QStringList lines = checksumData.split('\n', Qt::SkipEmptyParts);
     QRegularExpression separatorRx(R"([\s*]+)");
     QRegularExpression hexRx(R"(^[0-9a-fA-F]{64}$)");
 
+    QStringList checksumFilenames;
     for (const auto &line : lines) {
         // SHA256 hex digest is 64 characters; look for separator after that
         int separatorPos = line.indexOf(separatorRx, 64);
@@ -452,6 +470,7 @@ void MudletInstaller::onChecksumsFetchFinished() {
         }
 
         QString filename = line.mid(separatorPos).trimmed().remove('*');
+        checksumFilenames << filename;
 
         if (!downloadFilename.isEmpty() && filename.contains(downloadFilename, Qt::CaseInsensitive)) {
             info.sha256 = hash;
@@ -460,9 +479,20 @@ void MudletInstaller::onChecksumsFetchFinished() {
         }
     }
 
+    if (!checksumFilenames.isEmpty()) {
+        m_diagnosticLog << QString("SHA256SUMS.txt entries (%1):").arg(checksumFilenames.size());
+        for (const auto &name : checksumFilenames) {
+            m_diagnosticLog << QString("  %1").arg(name);
+        }
+    } else {
+        m_diagnosticLog << "SHA256SUMS.txt: (empty or unparseable)";
+    }
+
     if (info.sha256.isEmpty()) {
-        qDebug() << "No matching checksum found for" << downloadFilename
-                 << "- proceeding without hash verification";
+        qDebug() << "No matching checksum found for" << downloadFilename << "in checksums file";
+        m_diagnosticLog << QString("Error: No checksum entry found for \"%1\" in SHA256SUMS.txt.").arg(downloadFilename);
+    } else {
+        m_diagnosticLog << QString("Checksum found: %1").arg(info.sha256);
     }
 
     emit feedFetched();
@@ -605,8 +635,11 @@ void MudletInstaller::onDownloadError(QNetworkReply::NetworkError error) {
 
     if (!isRetryable) {
         statusLabel->setText(QString("Download failed: %1").arg(errorString));
+        m_diagnosticLog << QString("Error: Non-retryable download error: %1").arg(errorString);
         // Skip retry logic and go directly to error state for non-retryable errors
         retryCount = MAX_RETRIES; // This will force retryDownload to give up immediately
+    } else {
+        m_diagnosticLog << QString("Download error (will retry): %1").arg(errorString);
     }
 
     emit errorOccurred();
@@ -633,6 +666,8 @@ void MudletInstaller::verifyHash() {
     if (!verifyFileSha256(outputFile, info.sha256)) {
         qDebug() << "Checksum verification failed.";
         statusLabel->setText("SHA256 Verification Failed");
+        m_diagnosticLog << QString("Error: SHA256 mismatch for file \"%1\".").arg(outputFile);
+        m_diagnosticLog << QString("  Expected: %1").arg(info.sha256);
         emit hashInvalid();
     } else {
         qDebug() << "Checksum verification succeeded.";
@@ -934,8 +969,25 @@ void MudletInstaller::installApplication() {
  */
 void MudletInstaller::handleError() {
     qDebug() << "Handling error state";
-    statusLabel->setText("An error occurred");
-    // Show error dialog?
+
+    QString errorMessage = statusLabel->text();
+    if (errorMessage.isEmpty() || errorMessage == "Preparing to download...") {
+        errorMessage = "An unexpected error occurred during installation.";
+    }
+
+    QMessageBox msgBox(progressWindow);
+    msgBox.setWindowTitle("Installation Error");
+    msgBox.setText(errorMessage);
+    msgBox.setIcon(QMessageBox::Critical);
+
+    if (!m_diagnosticLog.isEmpty()) {
+        QString details = "Diagnostic information (include when reporting bugs):\n\n";
+        details += m_diagnosticLog.join('\n');
+        msgBox.setDetailedText(details);
+    }
+
+    msgBox.exec();
+
     emit finished();
 }
 
@@ -980,6 +1032,7 @@ void MudletInstaller::retryDownload() {
     } else {
         qDebug() << "Max retries reached, giving up";
         statusLabel->setText("Download failed after maximum retries");
+        m_diagnosticLog << QString("Error: Download failed after %1 retries.").arg(MAX_RETRIES);
         emit errorOccurred(); // This will trigger transition to error state
     }
 }
