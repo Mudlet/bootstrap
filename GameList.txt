@@ -16,6 +16,7 @@ Clessidra
 Dragonfire MUD
 Fierymud
 God Wars II
+Icesus
 Imperian
 Infinity
 Legends of the Jedi
