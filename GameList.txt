@@ -16,6 +16,7 @@ Clessidra
 Dragonfire MUD
 Fierymud
 God Wars II
+Icesus
 Imperian
 Infinity
 Legends of the Jedi
@@ -28,6 +29,7 @@ MorgenGrauen
 Mudren
 Multi-Users in Middle-earth
 Petria
+Pku XKX MUD
 Realms of Despair
 Reinos de Leyenda
 Slothmud
