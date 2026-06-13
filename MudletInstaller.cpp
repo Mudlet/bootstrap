@@ -28,7 +28,7 @@ QString buildAssetPattern(const QString &os) {
     if (os == "linux/x86_64") {
         return "-linux-x64.AppImage.tar";
     } else if (os == "win/x86_64" || os == "win/x86") {
-        return "-windows-64.exe";
+        return "-windows-64-installer.exe";
     } else if (os == "mac/arm") {
         return "-arm64.dmg";
     } else if (os == "mac/x86_64") {
