@@ -10,6 +10,7 @@
 #include <QStateMachine>
 #include <QState>
 #include <QFinalState>
+#include <QStringList>
 
 struct DownloadInfo {
     QString url;
@@ -27,6 +28,7 @@ public:
 private slots:
     void fetchPlatformFeed();
     void onFetchPlatformFeedFinished();
+    void onChecksumsFetchFinished();
     void checkExistingFile();
     void startDownload();
     void onDownloadProgress(qint64 bytesReceived, qint64 bytesTotal);
@@ -67,6 +69,9 @@ private:
     qint64 bytesAlreadyDownloaded;
     static const int MAX_RETRIES = 3;
     QString gameName;
+    QString assetPattern;
+
+    QStringList m_diagnosticLog;
 
     QStateMachine *m_stateMachine;
     QState *m_downloadFeedState;
