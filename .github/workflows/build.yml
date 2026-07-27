@@ -208,7 +208,7 @@ jobs:
         $GITHUB_WORKSPACE/CI/package-linux.sh
 
     - name: Upload Packaged Product
-      uses: actions/upload-artifact@v6
+      uses: actions/upload-artifact@v7
       if: env.UPLOAD_FILENAME
       with:
         name: ${{env.UPLOAD_FILENAME}}
