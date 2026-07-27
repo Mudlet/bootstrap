@@ -167,7 +167,7 @@ jobs:
       run: $GITHUB_WORKSPACE/CI/package-win.sh
 
     - name: (Windows) Login to Azure
-      uses: azure/login@v2
+      uses: azure/login@v3
       if: runner.os == 'Windows' && github.actor != 'dependabot[bot]' && github.event_name != 'pull_request' && github.repository == 'Mudlet/bootstrap'
       with:
         creds: ${{ secrets.AZURE_CREDENTIALS }}
