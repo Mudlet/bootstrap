@@ -214,15 +214,68 @@ jobs:
         name: ${{env.UPLOAD_FILENAME}}
         path: ${{env.FOLDER_TO_UPLOAD}}
 
-  release:
-    if: startsWith(github.ref, 'refs/tags/')
-    needs: compile
+  # A game added to GameList.txt has no launcher anywhere until a release is cut, so
+  # compare against the game list of the last release rather than the previous commit -
+  # that way a push whose release failed, or one that never triggered one, still gets picked up.
+  check-new-games:
     runs-on: ubuntu-latest
-    
+    outputs:
+      new-games: ${{steps.check.outputs.new-games}}
+      tag: ${{steps.check.outputs.tag}}
+
+    steps:
+    - name: Checkout Source
+      if: github.ref == 'refs/heads/development' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+      uses: actions/checkout@v6
+      with:
+        fetch-depth: 0
+
+    - name: Check for games without a launcher
+      id: check
+      if: github.ref == 'refs/heads/development' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+      run: |
+        latest_tag=$(git tag -l 'v*' --sort=-v:refname | head -1)
+        echo "Latest release tag: ${latest_tag:-none}"
+
+        # let a missing GameList.txt fail the job rather than release every game over again
+        : > released-games.txt
+        if [ -n "$latest_tag" ]; then
+          git show "$latest_tag:GameList.txt" > released-at-tag.txt
+          sort released-at-tag.txt > released-games.txt
+        fi
+        sort GameList.txt > current-games.txt
+
+        added=$(comm -13 released-games.txt current-games.txt)
+        if [ -z "$added" ]; then
+          echo "Every game already has a launcher in $latest_tag"
+          echo "new-games=false" >> $GITHUB_OUTPUT
+          exit 0
+        fi
+
+        echo "Games with no launcher yet:"
+        echo "$added"
+
+        # Bump the patch component, so v1.3.0 becomes v1.3.1
+        IFS=. read -r major minor patch <<< "${latest_tag#v}"
+        next_tag="v${major:-0}.${minor:-0}.$(( ${patch:-0} + 1 ))"
+        echo "Releasing as $next_tag"
+
+        echo "new-games=true" >> $GITHUB_OUTPUT
+        echo "tag=$next_tag" >> $GITHUB_OUTPUT
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/') || needs.check-new-games.outputs.new-games == 'true'
+    needs: [compile, check-new-games]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      RELEASE_TAG: ${{startsWith(github.ref, 'refs/tags/') && github.ref_name || needs.check-new-games.outputs.tag}}
+
     steps:
     - name: Checkout Source (for GameList.txt)
       uses: actions/checkout@v6
-    
+
     - name: Download all platform artifacts
       uses: actions/download-artifact@v7
       with:
@@ -239,14 +292,14 @@ jobs:
         
         # Get repository and tag info
         REPO="${{ github.repository }}"
-        TAG="${{ github.ref_name }}"
+        TAG="$RELEASE_TAG"
         BASE_URL="https://github.com/$REPO/releases/download/$TAG"
-        
+
         echo "Base URL: $BASE_URL"
 
         # Start building the release body
         cat > release-body.md << 'EOF'
-        ## MudletInstaller Release ${{ github.ref_name }}
+        ## MudletInstaller Release ${{ env.RELEASE_TAG }}
         
         Choose your game below and download the appropriate file for your operating system:
         
@@ -313,8 +366,11 @@ jobs:
       uses: softprops/action-gh-release@v2
       with:
         files: organized-releases/**/*
-        tag_name: ${{ github.ref_name }}
-        name: MudletInstaller ${{ github.ref_name }}
+        tag_name: ${{ env.RELEASE_TAG }}
+        # without this the tag lands on whatever development's tip happens to be by now,
+        # which may be ahead of the commit these launchers were built from
+        target_commitish: ${{ github.sha }}
+        name: MudletInstaller ${{ env.RELEASE_TAG }}
         body_path: release-body.md
         draft: false
         prerelease: false
