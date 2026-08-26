@@ -13,6 +13,7 @@ BlackMUD
 Carrion Fields
 Cleft of Dimensions
 Clessidra
+DarkMists
 Dragonfire MUD
 Federation 2 Community Edition
 Fierymud
@@ -34,6 +35,7 @@ PhoenixMUD
 Pku XKX MUD
 Realms of Despair
 Reinos de Leyenda
+Rites of Passage MUD
 Slothmud
 Starmourn
 StickMUD
