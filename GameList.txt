@@ -11,6 +11,7 @@ BatMUD
 Beyond the Void MUD
 BlackMUD
 Carrion Fields
+ClamberMUD
 Cleft of Dimensions
 Clessidra
 DarkMists
