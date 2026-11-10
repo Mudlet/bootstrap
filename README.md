@@ -21,6 +21,10 @@ cmake -B build
 cmake --build build
 ```
 
+## Acknowledgements
+
+Windows code signing provided by [SignPath.io](https://about.signpath.io), certificate by [SignPath Foundation](https://signpath.org).
+
 ## License
 
 See the [Mudlet repository](https://github.com/Mudlet/Mudlet) for license information.
