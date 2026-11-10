@@ -11,6 +11,18 @@ jobs:
   compile:
     name: ${{matrix.buildname}}
     runs-on: ${{matrix.os}}
+    # id-token and contents are what SignPath's trusted build verification needs
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      SIGNPATH_SIGNING_ENABLED: ${{ secrets.SIGNPATH_API_TOKEN != '' && github.actor != 'dependabot[bot]' && github.event_name != 'pull_request' && github.repository == 'Mudlet/bootstrap' }}
+      # Unlike Mudlet, where only tags and PTBs are signed, every non-PR build
+      # here can end up in a release: a push to development that adds a game
+      # cuts one without ever being tagged. So they all get the production
+      # certificate, and test-signing is left for verifying a SignPath
+      # configuration change by hand.
+      SIGNPATH_POLICY_SLUG: 'release-signing'
     strategy:
       fail-fast: false
       matrix:
@@ -166,25 +178,43 @@ jobs:
       shell: msys2 {0}
       run: $GITHUB_WORKSPACE/CI/package-win.sh
 
-    - name: (Windows) Login to Azure
-      uses: azure/login@v2
-      if: runner.os == 'Windows' && github.actor != 'dependabot[bot]' && github.event_name != 'pull_request' && github.repository == 'Mudlet/bootstrap'
-      with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
+    - name: (Windows) Prepare launchers for signing
+      if: runner.os == 'Windows'
+      shell: msys2 {0}
+      run: $GITHUB_WORKSPACE/CI/prepare-signing-win.sh
 
-    - name: Get Azure access token for code signing
-      shell: pwsh
-      if: runner.os == 'Windows' && github.actor != 'dependabot[bot]' && github.event_name != 'pull_request' && github.repository == 'Mudlet/bootstrap'
-      run: |
-        $token = (az account get-access-token --resource https://codesigning.azure.net | ConvertFrom-Json).accessToken
-        "::add-mask::$token"
-        "AZURE_ACCESS_TOKEN=$token" | Add-Content -Path $env:GITHUB_ENV
+    # Every game's launcher goes up in one artifact, and the artifact
+    # configuration's MudletInstaller-*.exe wildcard covers the lot, so a
+    # GameList of any length still costs a single signing request.
+    - name: (Windows) Upload unsigned launchers for signing
+      id: upload-unsigned-launchers
+      if: runner.os == 'Windows' && env.SIGNPATH_SIGNING_ENABLED == 'true'
+      uses: actions/upload-artifact@v6
+      with:
+        name: unsigned-launchers
+        path: ${{env.SIGNING_DIR}}
+        retention-days: 1
+
+    # Writes the signed launchers back over the staged copies, which is where
+    # deploy-win.sh picks them up from.
+    - name: (Windows) Sign launchers with SignPath
+      id: sign-launchers
+      if: steps.upload-unsigned-launchers.outcome == 'success'
+      uses: signpath/github-action-submit-signing-request@v2
+      with:
+        api-token: ${{secrets.SIGNPATH_API_TOKEN}}
+        organization-id: ${{secrets.SIGNPATH_ORGANIZATION_ID}}
+        project-slug: 'bootstrap'
+        signing-policy-slug: ${{env.SIGNPATH_POLICY_SLUG}}
+        artifact-configuration-slug: 'launchers'
+        github-artifact-id: ${{steps.upload-unsigned-launchers.outputs.artifact-id}}
+        wait-for-completion: true
+        output-artifact-directory: ${{github.workspace}}/signing-launchers
+        wait-for-completion-timeout-in-seconds: 3600
 
     - name: (Windows) Deploy
       if: runner.os == 'Windows'
       shell: msys2 {0}
-      env:
-        AZURE_ACCESS_TOKEN: ${{ env.AZURE_ACCESS_TOKEN }}
       run: $GITHUB_WORKSPACE/CI/deploy-win.sh
 
     - name: (macOS) Prep for Artifact Upload
