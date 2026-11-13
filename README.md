@@ -27,4 +27,4 @@ Windows code signing provided by [SignPath.io](https://about.signpath.io), certi
 
 ## License
 
-See the [Mudlet repository](https://github.com/Mudlet/Mudlet) for license information.
+MudletInstaller is licensed under the GNU General Public License, version 2 or (at your option) any later version, the same as [Mudlet](https://github.com/Mudlet/Mudlet). See [COPYING](COPYING).
