@@ -22,7 +22,8 @@ jobs:
       # publishing unsigned launchers.
       # Only tags and development can end up in a release, so only they are
       # signed: check-new-games cuts a release from a development push or
-      # workflow_dispatch that adds a game, without it ever being tagged.
+      # workflow_dispatch that adds a game. That build runs on development; the
+      # release step only creates its tag afterwards.
       SIGNPATH_SIGNING_ENABLED: ${{ github.actor != 'dependabot[bot]' && github.event_name != 'pull_request' && github.repository == 'Mudlet/bootstrap' && (startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/development') }}
       # Whether a development build adds a game isn't known until
       # check-new-games, which runs alongside this job, so every development
@@ -220,7 +221,8 @@ jobs:
     # Extracts the signed launchers into signed-launchers/, which
     # prepare-signing-win.sh made sure does not exist yet. The action extracts
     # over whatever is already in its output directory, so it must not be the
-    # staging directory: the unsigned copies there would pass for signed ones.
+    # staging directory: the unsigned copies there would pass deploy-win.sh's
+    # check that a signed copy exists.
     - name: (Windows) Sign launchers with SignPath
       id: sign-launchers
       if: steps.upload-unsigned-launchers.outcome == 'success'
