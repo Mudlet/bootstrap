@@ -34,7 +34,8 @@
 # 3 - Not used
 # 4 - nuget error
 # 5 - squirrel error
-# 7 - Signing was enabled but a launcher has no signed copy to publish
+# 7 - Signing was enabled but a launcher's signed copy is missing or could
+#     not be put in place to publish
 
 if [ "${MSYSTEM}" != "CLANG64" ]; then
   echo "Please run this script from a CLANG64 type bash terminal."
@@ -85,7 +86,8 @@ while IFS= read -r line || [[ -n "$line" ]]; do
   cd "$PACKAGE_DIR" || exit 1
 
   # The workflow has already checked every signature; this guards against
-  # publishing the unsigned launcher left in PACKAGE_DIR if that ever changes.
+  # publishing the unsigned launcher left in PACKAGE_DIR if the signed copy is
+  # missing or can't be put in its place.
   if [ "${SIGNPATH_SIGNING_ENABLED}" = "true" ]; then
     signedLauncher="${signedDir}/MudletInstaller-${gameName}.exe"
     if [ ! -f "${signedLauncher}" ]; then
@@ -93,7 +95,11 @@ while IFS= read -r line || [[ -n "$line" ]]; do
       echo "MudletInstaller-${gameName}.exe in ${signedDir}."
       exit 7
     fi
-    cp "${signedLauncher}" "${PACKAGE_DIR}/MudletInstaller-${gameName}.exe"
+    if ! cp "${signedLauncher}" "${PACKAGE_DIR}/MudletInstaller-${gameName}.exe"; then
+      echo "ERROR: could not replace the unsigned MudletInstaller-${gameName}.exe"
+      echo "with its signed copy."
+      exit 7
+    fi
   fi
 
   # Move packaged files to the upload directory

@@ -20,12 +20,14 @@ jobs:
       # Deliberately not conditional on the SignPath secrets being set: a build
       # that should be signed fails if they are missing, rather than quietly
       # publishing unsigned launchers.
-      SIGNPATH_SIGNING_ENABLED: ${{ github.actor != 'dependabot[bot]' && github.event_name != 'pull_request' && github.repository == 'Mudlet/bootstrap' }}
-      # Unlike Mudlet, where only tags and PTBs are signed, every non-PR build
-      # here can end up in a release: a push to development that adds a game
-      # cuts one without ever being tagged. So they all get the production
-      # certificate, and test-signing is left for verifying a SignPath
-      # configuration change by hand.
+      # Only tags and development can end up in a release, so only they are
+      # signed: check-new-games cuts a release from a development push or
+      # workflow_dispatch that adds a game, without it ever being tagged.
+      SIGNPATH_SIGNING_ENABLED: ${{ github.actor != 'dependabot[bot]' && github.event_name != 'pull_request' && github.repository == 'Mudlet/bootstrap' && (startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/development') }}
+      # Whether a development build adds a game isn't known until
+      # check-new-games, which runs alongside this job, so every development
+      # build gets the production certificate. test-signing is left for
+      # verifying a SignPath configuration change by hand.
       SIGNPATH_POLICY_SLUG: 'release-signing'
     strategy:
       fail-fast: false
