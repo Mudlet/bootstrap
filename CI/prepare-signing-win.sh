@@ -36,6 +36,7 @@
 # 1 - Failure to change to a directory
 # 2 - Unsupported MSYS2/MINGW shell type
 # 6 - No MudletInstaller.exe file found to work with
+# 7 - A launcher could not be renamed or staged for signing
 
 if [ "${MSYSTEM}" != "CLANG64" ]; then
   echo "Please run this script from a CLANG64 type bash terminal."
@@ -73,9 +74,13 @@ while IFS= read -r line || [[ -n "$line" ]]; do
     exit 6
   fi
 
-  mv "${PACKAGE_DIR}/MudletInstaller.exe" "MudletInstaller-${gameName}.exe"
-
-  cp "${PACKAGE_DIR}/MudletInstaller-${gameName}.exe" "${signingDir}/"
+  # Signing only covers what is staged here, so a launcher missing from it
+  # would go unnoticed until deploy-win.sh.
+  if ! mv "${PACKAGE_DIR}/MudletInstaller.exe" "MudletInstaller-${gameName}.exe" ||
+     ! cp "${PACKAGE_DIR}/MudletInstaller-${gameName}.exe" "${signingDir}/"; then
+    echo "ERROR: could not stage MudletInstaller-${gameName}.exe for signing."
+    exit 7
+  fi
 
   cd "$GITHUB_WORKSPACE" || exit 1
 

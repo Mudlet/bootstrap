@@ -11,8 +11,8 @@ jobs:
   compile:
     name: ${{matrix.buildname}}
     runs-on: ${{matrix.os}}
-    # actions: read is SignPath's - its action reads job details and downloads
-    # the artifact it signs with the job's GITHUB_TOKEN
+    # actions: read is SignPath's - its action hands the job's GITHUB_TOKEN to
+    # SignPath, which uses it to read job details and download the artifact
     permissions:
       actions: read
       contents: read
@@ -27,7 +27,9 @@ jobs:
       # Whether a development build adds a game isn't known until
       # check-new-games, which runs alongside this job, so every development
       # build gets the production certificate. test-signing is left for
-      # verifying a SignPath configuration change by hand.
+      # verifying a SignPath configuration change by hand; its self-signed
+      # certificate isn't trusted, so the verify step fails such a build
+      # before anything is published.
       SIGNPATH_POLICY_SLUG: 'release-signing'
     strategy:
       fail-fast: false
@@ -212,6 +214,8 @@ jobs:
         name: unsigned-launchers
         path: ${{env.SIGNING_DIR}}
         retention-days: 1
+        # so re-running a job whose signing request failed can upload again
+        overwrite: true
 
     # Extracts the signed launchers into signed-launchers/, which
     # prepare-signing-win.sh made sure does not exist yet. The action extracts
@@ -232,9 +236,9 @@ jobs:
         output-artifact-directory: ${{github.workspace}}/signed-launchers
         wait-for-completion-timeout-in-seconds: 3600
 
-    # SignPath passes files through unsigned if the artifact configuration does
-    # not cover them, so check that every launcher that went in came back with a
-    # valid signature before anything is published.
+    # Don't take the signing request's success on trust: check that every
+    # launcher that went in came back with a valid signature before anything is
+    # published.
     - name: (Windows) Verify launcher signatures
       if: steps.sign-launchers.outcome == 'success'
       shell: pwsh
@@ -360,9 +364,12 @@ jobs:
     - name: Checkout Source (for GameList.txt)
       uses: actions/checkout@v6
 
+    # Only the packaged launchers: the Windows job's unsigned-launchers
+    # artifact must never be picked up and published.
     - name: Download all platform artifacts
       uses: actions/download-artifact@v7
       with:
+        pattern: MudletInstaller-*
         path: ./platform-artifacts
     
     - name: Organize launchers by game
