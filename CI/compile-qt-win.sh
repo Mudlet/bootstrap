@@ -23,7 +23,13 @@ export CMAKE_SUPPRESS_DEVELOPER_WARNINGS=ON
   -qt-pcre \
   -openssl-linked \
   -- \
-  -DFEATURE_system_pcre2=OFF  
+  -DFEATURE_system_pcre2=OFF \
+  -DFEATURE_system_textmarkdownreader=OFF
+
+# FEATURE_system_textmarkdownreader=OFF: use Qt's bundled md4c. QT_VERSION
+# follows whatever qt6-base MSYS2 ships, and its system md4c can be a release
+# whose flag values Qt's qtextmarkdownimporter.cpp static_assert rejects (Qt
+# 6.12.0 vs md4c 0.6.0). A static build has no use for the system copy anyway.
 
 echo "=== Compiling Qt ==="
 cmake --build . --parallel
@@ -46,9 +52,17 @@ else
     cd qt-scxml-build
     
     # Try downloading from Qt's additional libraries (this may or may not work)
+    # Qt moves older releases from official_releases/ to archive/ without
+    # notice, so fall back to the archive rather than breaking when that happens.
     QT_MINOR="${QT_VERSION%.*}"
-    wget -q "https://download.qt.io/official_releases/qt/${QT_MINOR}/${QT_VERSION}/submodules/qtscxml-everywhere-src-${QT_VERSION}.tar.xz" || \
-    echo "Could not download ScXML from additional libraries"
+    SCXML_TARBALL="qtscxml-everywhere-src-${QT_VERSION}.tar.xz"
+    for base in official_releases archive; do
+        if wget -q "https://download.qt.io/${base}/qt/${QT_MINOR}/${QT_VERSION}/submodules/${SCXML_TARBALL}"; then
+            break
+        fi
+        rm -f "${SCXML_TARBALL}"
+    done
+    [[ -f "${SCXML_TARBALL}" ]] || echo "Could not download ScXML from official_releases or archive"
 
     if [[ -f "qtscxml-everywhere-src-${QT_VERSION}.tar.xz" ]]; then
         echo "Found ScXML source, building..."

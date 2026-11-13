@@ -30,14 +30,24 @@ cd "$BUILD_DIR"
 # Download Qt SCXML source from official Qt releases
 echo "=== Downloading Qt SCXML source from official releases ==="
 QT_MINOR="${QT_VERSION%.*}"
-SCXML_URL="https://download.qt.io/official_releases/qt/${QT_MINOR}/${QT_VERSION}/submodules/qtscxml-everywhere-src-${QT_VERSION}.tar.xz"
+SCXML_TARBALL="qtscxml-everywhere-src-${QT_VERSION}.tar.xz"
+SCXML_PATH="qt/${QT_MINOR}/${QT_VERSION}/submodules/${SCXML_TARBALL}"
 
-if [[ ! -f "qtscxml-everywhere-src-${QT_VERSION}.tar.xz" ]]; then
-    echo "Downloading $SCXML_URL"
-    wget -q "$SCXML_URL" || {
+# Qt moves older releases from official_releases/ to archive/ without notice,
+# so fall back to the archive rather than breaking when that happens.
+if [[ ! -f "${SCXML_TARBALL}" ]]; then
+    for base in official_releases archive; do
+        SCXML_URL="https://download.qt.io/${base}/${SCXML_PATH}"
+        echo "Downloading $SCXML_URL"
+        if wget -q "$SCXML_URL"; then
+            break
+        fi
+        rm -f "${SCXML_TARBALL}"
+    done
+    if [[ ! -f "${SCXML_TARBALL}" ]]; then
         echo "Failed to download Qt SCXML source"
         exit 1
-    }
+    fi
 fi
 
 # Extract the source
