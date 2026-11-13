@@ -47,11 +47,13 @@ cd "$GITHUB_WORKSPACE" || exit 1
 
 GITHUB_WORKSPACE_UNIX_PATH=$(echo "${GITHUB_WORKSPACE}" | sed 's|\\|/|g' | sed 's|D:|/d|g')
 
-# Rebuilt from scratch: SignPath extracts the signed artifact back over this
-# directory, so anything stale left here would be published as though it had
-# been signed.
+# Both rebuilt from scratch. signing-launchers/ is what gets uploaded, so a
+# stale file in it would be signed and shipped. signed-launchers/ is where
+# SignPath extracts the result over whatever is already there, so a stale file
+# in it would be published as though it had just been signed.
 signingDir="${GITHUB_WORKSPACE_UNIX_PATH}/signing-launchers"
-rm -rf "${signingDir}"
+signedDir="${GITHUB_WORKSPACE_UNIX_PATH}/signed-launchers"
+rm -rf "${signingDir}" "${signedDir}"
 mkdir -p "${signingDir}"
 
 while IFS= read -r line || [[ -n "$line" ]]; do

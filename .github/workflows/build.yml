@@ -11,12 +11,16 @@ jobs:
   compile:
     name: ${{matrix.buildname}}
     runs-on: ${{matrix.os}}
-    # id-token and contents are what SignPath's trusted build verification needs
+    # actions: read is SignPath's - its action reads job details and downloads
+    # the artifact it signs with the job's GITHUB_TOKEN
     permissions:
-      id-token: write
+      actions: read
       contents: read
     env:
-      SIGNPATH_SIGNING_ENABLED: ${{ secrets.SIGNPATH_API_TOKEN != '' && github.actor != 'dependabot[bot]' && github.event_name != 'pull_request' && github.repository == 'Mudlet/bootstrap' }}
+      # Deliberately not conditional on the SignPath secrets being set: a build
+      # that should be signed fails if they are missing, rather than quietly
+      # publishing unsigned launchers.
+      SIGNPATH_SIGNING_ENABLED: ${{ github.actor != 'dependabot[bot]' && github.event_name != 'pull_request' && github.repository == 'Mudlet/bootstrap' }}
       # Unlike Mudlet, where only tags and PTBs are signed, every non-PR build
       # here can end up in a release: a push to development that adds a game
       # cuts one without ever being tagged. So they all get the production
@@ -183,6 +187,18 @@ jobs:
       shell: msys2 {0}
       run: $GITHUB_WORKSPACE/CI/prepare-signing-win.sh
 
+    - name: (Windows) Check SignPath secrets
+      if: runner.os == 'Windows' && env.SIGNPATH_SIGNING_ENABLED == 'true'
+      shell: bash
+      env:
+        SIGNPATH_API_TOKEN: ${{secrets.SIGNPATH_API_TOKEN}}
+        SIGNPATH_ORGANIZATION_ID: ${{secrets.SIGNPATH_ORGANIZATION_ID}}
+      run: |
+        if [ -z "${SIGNPATH_API_TOKEN}" ] || [ -z "${SIGNPATH_ORGANIZATION_ID}" ]; then
+          echo "::error::This build must be signed, but SIGNPATH_API_TOKEN or SIGNPATH_ORGANIZATION_ID is not set."
+          exit 1
+        fi
+
     # Every game's launcher goes up in one artifact, and the artifact
     # configuration's MudletInstaller-*.exe wildcard covers the lot, so a
     # GameList of any length still costs a single signing request.
@@ -195,8 +211,10 @@ jobs:
         path: ${{env.SIGNING_DIR}}
         retention-days: 1
 
-    # Writes the signed launchers back over the staged copies, which is where
-    # deploy-win.sh picks them up from.
+    # Extracts the signed launchers into signed-launchers/, which
+    # prepare-signing-win.sh made sure does not exist yet. The action extracts
+    # over whatever is already in its output directory, so it must not be the
+    # staging directory: the unsigned copies there would pass for signed ones.
     - name: (Windows) Sign launchers with SignPath
       id: sign-launchers
       if: steps.upload-unsigned-launchers.outcome == 'success'
@@ -209,8 +227,42 @@ jobs:
         artifact-configuration-slug: 'launchers'
         github-artifact-id: ${{steps.upload-unsigned-launchers.outputs.artifact-id}}
         wait-for-completion: true
-        output-artifact-directory: ${{github.workspace}}/signing-launchers
+        output-artifact-directory: ${{github.workspace}}/signed-launchers
         wait-for-completion-timeout-in-seconds: 3600
+
+    # SignPath passes files through unsigned if the artifact configuration does
+    # not cover them, so check that every launcher that went in came back with a
+    # valid signature before anything is published.
+    - name: (Windows) Verify launcher signatures
+      if: steps.sign-launchers.outcome == 'success'
+      shell: pwsh
+      run: |
+        $staged = Get-ChildItem -Path "$env:GITHUB_WORKSPACE\signing-launchers" -Filter 'MudletInstaller-*.exe'
+        if ($staged.Count -eq 0) {
+          Write-Output "::error::No launchers were staged for signing."
+          exit 1
+        }
+        $failed = 0
+        foreach ($launcher in $staged) {
+          $signedPath = Join-Path "$env:GITHUB_WORKSPACE\signed-launchers" $launcher.Name
+          if (-not (Test-Path -LiteralPath $signedPath)) {
+            Write-Output "::error::SignPath returned no $($launcher.Name)."
+            $failed++
+            continue
+          }
+          $signature = Get-AuthenticodeSignature -LiteralPath $signedPath
+          if ($signature.Status -ne 'Valid') {
+            Write-Output "::error::$($launcher.Name) signature status is $($signature.Status): $($signature.StatusMessage)"
+            $failed++
+            continue
+          }
+          Write-Output "$($launcher.Name): signed by $($signature.SignerCertificate.Subject)"
+        }
+        if ($failed -gt 0) {
+          Write-Output "::error::$failed of $($staged.Count) launchers are not validly signed."
+          exit 1
+        }
+        Write-Output "All $($staged.Count) launchers are validly signed."
 
     - name: (Windows) Deploy
       if: runner.os == 'Windows'

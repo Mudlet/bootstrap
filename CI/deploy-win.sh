@@ -34,7 +34,7 @@
 # 3 - Not used
 # 4 - nuget error
 # 5 - squirrel error
-# 7 - A launcher that should have been signed came back unsigned
+# 7 - Signing was enabled but a launcher has no signed copy to publish
 
 if [ "${MSYSTEM}" != "CLANG64" ]; then
   echo "Please run this script from a CLANG64 type bash terminal."
@@ -65,9 +65,10 @@ else
   echo "=== Building for regular build ==="
 fi
 
-# prepare-signing-win.sh staged a copy of every launcher here; where the
-# workflow's SignPath steps ran, the copies in here are the signed ones.
-signingDir="${GITHUB_WORKSPACE_UNIX_PATH}/signing-launchers"
+# Where the workflow's SignPath steps ran, the signed launchers are here.
+# prepare-signing-win.sh removed this directory before signing, so anything in
+# it came back from SignPath.
+signedDir="${GITHUB_WORKSPACE_UNIX_PATH}/signed-launchers"
 
 if [ "${SIGNPATH_SIGNING_ENABLED}" = "true" ]; then
   echo "=== Publishing SignPath-signed launchers ==="
@@ -83,17 +84,16 @@ while IFS= read -r line || [[ -n "$line" ]]; do
 
   cd "$PACKAGE_DIR" || exit 1
 
-  # A launcher missing from here means the artifact configuration's wildcard
-  # did not match it, which SignPath reports as a success while quietly
-  # handing back fewer files than it was given - so check rather than ship an
-  # unsigned launcher under a signed release.
-  signedLauncher="${signingDir}/MudletInstaller-${gameName}.exe"
-  if [ -f "${signedLauncher}" ]; then
+  # The workflow has already checked every signature; this guards against
+  # publishing the unsigned launcher left in PACKAGE_DIR if that ever changes.
+  if [ "${SIGNPATH_SIGNING_ENABLED}" = "true" ]; then
+    signedLauncher="${signedDir}/MudletInstaller-${gameName}.exe"
+    if [ ! -f "${signedLauncher}" ]; then
+      echo "ERROR: signing was enabled but there is no signed"
+      echo "MudletInstaller-${gameName}.exe in ${signedDir}."
+      exit 7
+    fi
     cp "${signedLauncher}" "${PACKAGE_DIR}/MudletInstaller-${gameName}.exe"
-  elif [ "${SIGNPATH_SIGNING_ENABLED}" = "true" ]; then
-    echo "ERROR: signing was enabled but SignPath returned no"
-    echo "MudletInstaller-${gameName}.exe - check the artifact configuration."
-    exit 7
   fi
 
   # Move packaged files to the upload directory
