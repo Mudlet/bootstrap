@@ -81,6 +81,18 @@ target_link_libraries(MudletInstaller PRIVATE
 
 
 if(WIN32)
+    # SignPath's artifact configuration requires every launcher to carry a
+    # product name and version, so CI passes in the release's version.
+    set(LAUNCHER_VERSION "0.0.0" CACHE STRING "Launcher version as X.Y.Z")
+    if(NOT LAUNCHER_VERSION MATCHES "^([0-9]+)\\.([0-9]+)\\.([0-9]+)$")
+        message(FATAL_ERROR "LAUNCHER_VERSION must be X.Y.Z, got '${LAUNCHER_VERSION}'")
+    endif()
+    set(LAUNCHER_VERSION_MAJOR ${CMAKE_MATCH_1})
+    set(LAUNCHER_VERSION_MINOR ${CMAKE_MATCH_2})
+    set(LAUNCHER_VERSION_PATCH ${CMAKE_MATCH_3})
+    configure_file(MudletInstaller.rc.in "${CMAKE_CURRENT_BINARY_DIR}/MudletInstaller.rc" @ONLY)
+    target_sources(MudletInstaller PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/MudletInstaller.rc")
+
     if(DEFINED ENV{MINGW_PREFIX})
         # MINGW_PREFIX should be set by GHA
         set(MSYS2_LIB_PATH "$ENV{MINGW_PREFIX}/lib")

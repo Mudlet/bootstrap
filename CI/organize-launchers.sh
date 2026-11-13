@@ -30,7 +30,7 @@ if [ ! "$(ls -A organized-releases 2>/dev/null)" ]; then
             
             # Look for game launcher files
             case "$platform_name" in
-                *MINGW64*|*Windows*)
+                *CLANG64*|*MINGW64*|*Windows*)
                     echo "  Looking for Windows executables..."
                     find "$platform_dir" -name "*.exe" -type f | while read launcher; do
                         if [ -f "$launcher" ]; then
