@@ -19,7 +19,13 @@
 #   59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.             #
 ###########################################################################
 
-# Version: 2.0.0    Rework to build on an MSYS2 MINGW64 Github workflow
+# Version: 3.0.0    Windows signing moved from Azure Trusted Signing to
+#                   SignPath. jsign ran here and signed each launcher in place;
+#                   SignPath instead signs an artifact the workflow uploads
+#                   between prepare-signing-win.sh and this script, so all
+#                   that is left to do here is pick the signed launchers back
+#                   up before publishing them.
+#          2.0.0    Rework to build on an MSYS2 MINGW64 Github workflow
 
 # Exit codes:
 # 0 - Everything is fine. 8-)
@@ -28,6 +34,7 @@
 # 3 - Not used
 # 4 - nuget error
 # 5 - squirrel error
+# 7 - A launcher that should have been signed came back unsigned
 
 if [ "${MSYSTEM}" != "CLANG64" ]; then
   echo "Please run this script from a CLANG64 type bash terminal."
@@ -58,17 +65,14 @@ else
   echo "=== Building for regular build ==="
 fi
 
-# Set up Java for code signing if Azure token is available
-if [ -n "${AZURE_ACCESS_TOKEN}" ]; then
-  echo "=== Setting up Java 21 for signing ==="
-  # Java is installed by default, we just need to select which version to use:
-  JAVA_HOME="$(cygpath -au "${JAVA_HOME_21_X64}")"
-  export JAVA_HOME
-  export PATH="${JAVA_HOME}/bin:${PATH}"
-  JAVA_JAR_WINPATHFILE="$(cygpath -aw "${GITHUB_WORKSPACE}/CI/jsign-7.0-SNAPSHOT.jar")"
-  echo "Java setup complete for code signing"
+# prepare-signing-win.sh staged a copy of every launcher here; where the
+# workflow's SignPath steps ran, the copies in here are the signed ones.
+signingDir="${GITHUB_WORKSPACE_UNIX_PATH}/signing-launchers"
+
+if [ "${SIGNPATH_SIGNING_ENABLED}" = "true" ]; then
+  echo "=== Publishing SignPath-signed launchers ==="
 else
-  echo "=== Code signing skipped - no Azure token provided ==="
+  echo "=== Code signing skipped - publishing unsigned launchers ==="
 fi
 
 while IFS= read -r line || [[ -n "$line" ]]; do
@@ -79,22 +83,17 @@ while IFS= read -r line || [[ -n "$line" ]]; do
 
   cd "$PACKAGE_DIR" || exit 1
 
-  # Remove specific file types from the directory
-  rm ./*.cpp ./*.o
-
-  mv "$PACKAGE_DIR/MudletInstaller.exe" "MudletInstaller-${gameName}.exe"
-
-  # Sign the executable if Azure token is available
-  if [ -n "${AZURE_ACCESS_TOKEN}" ]; then
-    echo "=== Signing MudletInstaller-${gameName}.exe ==="
-    EXECUTABLE_WINPATH="$(cygpath -aw "${PACKAGE_DIR}/MudletInstaller-${gameName}.exe")"
-    java.exe -jar "${JAVA_JAR_WINPATHFILE}" \
-      --storetype TRUSTEDSIGNING \
-      --keystore eus.codesigning.azure.net \
-      --storepass "${AZURE_ACCESS_TOKEN}" \
-      --alias Mudlet/Mudlet \
-      "${EXECUTABLE_WINPATH}"
-    echo "Signing completed for MudletInstaller-${gameName}.exe"
+  # A launcher missing from here means the artifact configuration's wildcard
+  # did not match it, which SignPath reports as a success while quietly
+  # handing back fewer files than it was given - so check rather than ship an
+  # unsigned launcher under a signed release.
+  signedLauncher="${signingDir}/MudletInstaller-${gameName}.exe"
+  if [ -f "${signedLauncher}" ]; then
+    cp "${signedLauncher}" "${PACKAGE_DIR}/MudletInstaller-${gameName}.exe"
+  elif [ "${SIGNPATH_SIGNING_ENABLED}" = "true" ]; then
+    echo "ERROR: signing was enabled but SignPath returned no"
+    echo "MudletInstaller-${gameName}.exe - check the artifact configuration."
+    exit 7
   fi
 
   # Move packaged files to the upload directory
