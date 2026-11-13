@@ -248,7 +248,7 @@ jobs:
       with:
         api-token: ${{secrets.SIGNPATH_API_TOKEN}}
         organization-id: ${{secrets.SIGNPATH_ORGANIZATION_ID}}
-        project-slug: 'Mudlet'
+        project-slug: 'bootstrap'
         signing-policy-slug: ${{env.SIGNPATH_POLICY_SLUG}}
         artifact-configuration-slug: 'launchers'
         github-artifact-id: ${{steps.upload-unsigned-launchers.outputs.artifact-id}}

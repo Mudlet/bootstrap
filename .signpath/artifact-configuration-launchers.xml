@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- MIRROR ONLY. SignPath applies the configuration stored in its web app
-     against the 'launchers' slug of the Mudlet project; nothing in CI uploads
+     against the 'launchers' slug of the bootstrap project; nothing in CI uploads
      this file. Editing it here changes nothing until the portal matches. -->
 <!-- GitHub Actions packages artifacts as ZIP files, so zip-file is the root element -->
 <artifact-configuration xmlns="http://signpath.io/artifact-configuration/v1">
