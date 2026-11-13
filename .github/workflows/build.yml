@@ -11,6 +11,10 @@ jobs:
   compile:
     name: ${{matrix.buildname}}
     runs-on: ${{matrix.os}}
+    # SignPath Foundation requires a manual approval for every signing request,
+    # so only builds that will be released may ask for one, and whether a
+    # development build releases is only known once check-new-games has run.
+    needs: check-new-games
     # actions: read is SignPath's - its action hands the job's GITHUB_TOKEN to
     # SignPath, which uses it to read job details and download the artifact
     permissions:
@@ -20,20 +24,17 @@ jobs:
       # Deliberately not conditional on the SignPath secrets being set: a build
       # that should be signed fails if they are missing, rather than quietly
       # publishing unsigned launchers.
-      # Only tags and development can end up in a release, so only they are
-      # signed: check-new-games cuts a release from a development push or
-      # workflow_dispatch that adds a game. That build runs on development; the
-      # release step only creates its tag afterwards. A manual workflow_dispatch
-      # is signed on any branch, so a SignPath change can be tried out before
-      # it is merged.
-      SIGNPATH_SIGNING_ENABLED: ${{ github.actor != 'dependabot[bot]' && github.event_name != 'pull_request' && github.repository == 'Mudlet/bootstrap' && (startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/development' || github.event_name == 'workflow_dispatch') }}
-      # Whether a development build adds a game isn't known until
-      # check-new-games, which runs alongside this job, so every development
-      # build gets the production certificate. test-signing is left for
-      # verifying a SignPath configuration change by hand; its self-signed
-      # certificate isn't trusted, so the verify step fails such a build
-      # before anything is published.
+      # Signed: tags, and development builds that check-new-games will release.
+      # A manual workflow_dispatch is signed on any branch too, so a SignPath
+      # change can be tried out before it is merged - it still needs approving.
+      SIGNPATH_SIGNING_ENABLED: ${{ github.actor != 'dependabot[bot]' && github.event_name != 'pull_request' && github.repository == 'Mudlet/bootstrap' && (startsWith(github.ref, 'refs/tags/') || needs.check-new-games.outputs.new-games == 'true' || github.event_name == 'workflow_dispatch') }}
+      # test-signing is left for verifying a SignPath configuration change by
+      # hand; its self-signed certificate isn't trusted, so the verify step
+      # fails such a build before anything is published.
       SIGNPATH_POLICY_SLUG: 'release-signing'
+      # The version the release will carry, written into each Windows launcher
+      # and enforced by the artifact configuration's product-version.
+      RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || needs.check-new-games.outputs.tag }}
     strategy:
       fail-fast: false
       matrix:
@@ -113,6 +114,21 @@ jobs:
         # Make the build script executable and run it
         chmod +x ./CI/build-qt-statemachine.sh
         ./CI/build-qt-statemachine.sh
+
+    # Builds that aren't released get 0.0.0. The launcher's version resource
+    # takes four numbers, so a tag must be vX.Y.Z.
+    - name: (Windows) Set launcher version
+      if: runner.os == 'Windows'
+      shell: bash
+      run: |
+        version="${RELEASE_TAG#v}"
+        version="${version:-0.0.0}"
+        if ! [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          echo "::error::Release tag ${RELEASE_TAG} is not of the form vX.Y.Z."
+          exit 1
+        fi
+        echo "Launcher version: ${version}"
+        echo "LAUNCHER_VERSION=${version}" >> "$GITHUB_ENV"
 
     - name: (Windows) Setup MSYS2
       if: runner.os == 'Windows'
@@ -232,13 +248,16 @@ jobs:
       with:
         api-token: ${{secrets.SIGNPATH_API_TOKEN}}
         organization-id: ${{secrets.SIGNPATH_ORGANIZATION_ID}}
-        project-slug: 'bootstrap'
+        project-slug: 'Mudlet'
         signing-policy-slug: ${{env.SIGNPATH_POLICY_SLUG}}
         artifact-configuration-slug: 'launchers'
         github-artifact-id: ${{steps.upload-unsigned-launchers.outputs.artifact-id}}
+        parameters: |
+          version: ${{ toJSON(format('{0}.0', env.LAUNCHER_VERSION)) }}
         wait-for-completion: true
         output-artifact-directory: ${{github.workspace}}/signed-launchers
-        wait-for-completion-timeout-in-seconds: 3600
+        # Leaves time for an approver to respond, within GitHub's 6 hour job limit
+        wait-for-completion-timeout-in-seconds: 14400
 
     # Don't take the signing request's success on trust: check that every
     # launcher that went in came back with a valid signature before anything is
