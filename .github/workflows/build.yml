@@ -23,8 +23,10 @@ jobs:
       # Only tags and development can end up in a release, so only they are
       # signed: check-new-games cuts a release from a development push or
       # workflow_dispatch that adds a game. That build runs on development; the
-      # release step only creates its tag afterwards.
-      SIGNPATH_SIGNING_ENABLED: ${{ github.actor != 'dependabot[bot]' && github.event_name != 'pull_request' && github.repository == 'Mudlet/bootstrap' && (startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/development') }}
+      # release step only creates its tag afterwards. A manual workflow_dispatch
+      # is signed on any branch, so a SignPath change can be tried out before
+      # it is merged.
+      SIGNPATH_SIGNING_ENABLED: ${{ github.actor != 'dependabot[bot]' && github.event_name != 'pull_request' && github.repository == 'Mudlet/bootstrap' && (startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/development' || github.event_name == 'workflow_dispatch') }}
       # Whether a development build adds a game isn't known until
       # check-new-games, which runs alongside this job, so every development
       # build gets the production certificate. test-signing is left for
