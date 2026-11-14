@@ -11,6 +11,30 @@ jobs:
   compile:
     name: ${{matrix.buildname}}
     runs-on: ${{matrix.os}}
+    # SignPath Foundation requires a manual approval for every signing request,
+    # so only builds that will be released may ask for one, and whether a
+    # development build releases is only known once check-new-games has run.
+    needs: check-new-games
+    # actions: read is SignPath's - its action hands the job's GITHUB_TOKEN to
+    # SignPath, which uses it to read job details and download the artifact
+    permissions:
+      actions: read
+      contents: read
+    env:
+      # Deliberately not conditional on the SignPath secrets being set: a build
+      # that should be signed fails if they are missing, rather than quietly
+      # publishing unsigned launchers.
+      # Signed: tags, and development builds that check-new-games will release.
+      # A manual workflow_dispatch is signed on any branch too, so a SignPath
+      # change can be tried out before it is merged - it still needs approving.
+      SIGNPATH_SIGNING_ENABLED: ${{ github.actor != 'dependabot[bot]' && github.event_name != 'pull_request' && github.repository == 'Mudlet/bootstrap' && (startsWith(github.ref, 'refs/tags/') || needs.check-new-games.outputs.new-games == 'true' || github.event_name == 'workflow_dispatch') }}
+      # test-signing is left for verifying a SignPath configuration change by
+      # hand; its self-signed certificate isn't trusted, so the verify step
+      # fails such a build before anything is published.
+      SIGNPATH_POLICY_SLUG: 'release-signing'
+      # The version the release will carry, written into each Windows launcher
+      # and enforced by the artifact configuration's product-version.
+      RELEASE_TAG: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || needs.check-new-games.outputs.tag }}
     strategy:
       fail-fast: false
       matrix:
@@ -91,6 +115,21 @@ jobs:
         chmod +x ./CI/build-qt-statemachine.sh
         ./CI/build-qt-statemachine.sh
 
+    # Builds that aren't released get 0.0.0. The launcher's version resource
+    # takes four numbers, so a tag must be vX.Y.Z.
+    - name: (Windows) Set launcher version
+      if: runner.os == 'Windows'
+      shell: bash
+      run: |
+        version="${RELEASE_TAG#v}"
+        version="${version:-0.0.0}"
+        if ! [[ "${version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          echo "::error::Release tag ${RELEASE_TAG} is not of the form vX.Y.Z."
+          exit 1
+        fi
+        echo "Launcher version: ${version}"
+        echo "LAUNCHER_VERSION=${version}" >> "$GITHUB_ENV"
+
     - name: (Windows) Setup MSYS2
       if: runner.os == 'Windows'
       uses: msys2/setup-msys2@v2
@@ -166,25 +205,97 @@ jobs:
       shell: msys2 {0}
       run: $GITHUB_WORKSPACE/CI/package-win.sh
 
-    - name: (Windows) Login to Azure
-      uses: azure/login@v2
-      if: runner.os == 'Windows' && github.actor != 'dependabot[bot]' && github.event_name != 'pull_request' && github.repository == 'Mudlet/bootstrap'
-      with:
-        creds: ${{ secrets.AZURE_CREDENTIALS }}
+    - name: (Windows) Prepare launchers for signing
+      if: runner.os == 'Windows'
+      shell: msys2 {0}
+      run: $GITHUB_WORKSPACE/CI/prepare-signing-win.sh
 
-    - name: Get Azure access token for code signing
-      shell: pwsh
-      if: runner.os == 'Windows' && github.actor != 'dependabot[bot]' && github.event_name != 'pull_request' && github.repository == 'Mudlet/bootstrap'
+    - name: (Windows) Check SignPath secrets
+      if: runner.os == 'Windows' && env.SIGNPATH_SIGNING_ENABLED == 'true'
+      shell: bash
+      env:
+        SIGNPATH_API_TOKEN: ${{secrets.SIGNPATH_API_TOKEN}}
+        SIGNPATH_ORGANIZATION_ID: ${{secrets.SIGNPATH_ORGANIZATION_ID}}
       run: |
-        $token = (az account get-access-token --resource https://codesigning.azure.net | ConvertFrom-Json).accessToken
-        "::add-mask::$token"
-        "AZURE_ACCESS_TOKEN=$token" | Add-Content -Path $env:GITHUB_ENV
+        if [ -z "${SIGNPATH_API_TOKEN}" ] || [ -z "${SIGNPATH_ORGANIZATION_ID}" ]; then
+          echo "::error::This build must be signed, but SIGNPATH_API_TOKEN or SIGNPATH_ORGANIZATION_ID is not set."
+          exit 1
+        fi
+
+    # Every game's launcher goes up in one artifact, and the artifact
+    # configuration's MudletInstaller-*.exe wildcard covers the lot, so a
+    # GameList of any length still costs a single signing request.
+    - name: (Windows) Upload unsigned launchers for signing
+      id: upload-unsigned-launchers
+      if: runner.os == 'Windows' && env.SIGNPATH_SIGNING_ENABLED == 'true'
+      uses: actions/upload-artifact@v6
+      with:
+        name: unsigned-launchers
+        path: ${{env.SIGNING_DIR}}
+        retention-days: 1
+        # so re-running a job whose signing request failed can upload again
+        overwrite: true
+
+    # Extracts the signed launchers into signed-launchers/, which
+    # prepare-signing-win.sh made sure does not exist yet. The action extracts
+    # over whatever is already in its output directory, so it must not be the
+    # staging directory: the unsigned copies there would pass deploy-win.sh's
+    # check that a signed copy exists.
+    - name: (Windows) Sign launchers with SignPath
+      id: sign-launchers
+      if: steps.upload-unsigned-launchers.outcome == 'success'
+      uses: signpath/github-action-submit-signing-request@v2
+      with:
+        api-token: ${{secrets.SIGNPATH_API_TOKEN}}
+        organization-id: ${{secrets.SIGNPATH_ORGANIZATION_ID}}
+        project-slug: 'bootstrap'
+        signing-policy-slug: ${{env.SIGNPATH_POLICY_SLUG}}
+        artifact-configuration-slug: 'launchers'
+        github-artifact-id: ${{steps.upload-unsigned-launchers.outputs.artifact-id}}
+        parameters: |
+          version: ${{ toJSON(format('{0}.0', env.LAUNCHER_VERSION)) }}
+        wait-for-completion: true
+        output-artifact-directory: ${{github.workspace}}/signed-launchers
+        # Leaves time for an approver to respond, within GitHub's 6 hour job limit
+        wait-for-completion-timeout-in-seconds: 14400
+
+    # Don't take the signing request's success on trust: check that every
+    # launcher that went in came back with a valid signature before anything is
+    # published.
+    - name: (Windows) Verify launcher signatures
+      if: steps.sign-launchers.outcome == 'success'
+      shell: pwsh
+      run: |
+        $staged = Get-ChildItem -Path "$env:GITHUB_WORKSPACE\signing-launchers" -Filter 'MudletInstaller-*.exe'
+        if ($staged.Count -eq 0) {
+          Write-Output "::error::No launchers were staged for signing."
+          exit 1
+        }
+        $failed = 0
+        foreach ($launcher in $staged) {
+          $signedPath = Join-Path "$env:GITHUB_WORKSPACE\signed-launchers" $launcher.Name
+          if (-not (Test-Path -LiteralPath $signedPath)) {
+            Write-Output "::error::SignPath returned no $($launcher.Name)."
+            $failed++
+            continue
+          }
+          $signature = Get-AuthenticodeSignature -LiteralPath $signedPath
+          if ($signature.Status -ne 'Valid') {
+            Write-Output "::error::$($launcher.Name) signature status is $($signature.Status): $($signature.StatusMessage)"
+            $failed++
+            continue
+          }
+          Write-Output "$($launcher.Name): signed by $($signature.SignerCertificate.Subject)"
+        }
+        if ($failed -gt 0) {
+          Write-Output "::error::$failed of $($staged.Count) launchers are not validly signed."
+          exit 1
+        }
+        Write-Output "All $($staged.Count) launchers are validly signed."
 
     - name: (Windows) Deploy
       if: runner.os == 'Windows'
       shell: msys2 {0}
-      env:
-        AZURE_ACCESS_TOKEN: ${{ env.AZURE_ACCESS_TOKEN }}
       run: $GITHUB_WORKSPACE/CI/deploy-win.sh
 
     - name: (macOS) Prep for Artifact Upload
@@ -276,9 +387,12 @@ jobs:
     - name: Checkout Source (for GameList.txt)
       uses: actions/checkout@v6
 
+    # Only the packaged launchers: the Windows job's unsigned-launchers
+    # artifact must never be picked up and published.
     - name: Download all platform artifacts
       uses: actions/download-artifact@v7
       with:
+        pattern: MudletInstaller-*
         path: ./platform-artifacts
     
     - name: Organize launchers by game

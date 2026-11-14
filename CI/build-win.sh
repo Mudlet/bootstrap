@@ -194,6 +194,7 @@ EOF
     -DCMAKE_PREFIX_PATH="$(cygpath -w $Qt6_PREFIX)" \
     -DQt6LinguistTools_DIR="${QT_LINGUIST_DIR}" \
     -DCMAKE_IGNORE_PATH="${MSYSTEM_PREFIX}/lib/cmake/Qt6" \
+    -DLAUNCHER_VERSION="${LAUNCHER_VERSION:-0.0.0}" \
     ..
 
   if [ $? -ne 0 ]; then

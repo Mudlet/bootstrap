@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- MIRROR ONLY. SignPath applies the configuration stored in its web app
+     against the 'launchers' slug of the bootstrap project; nothing in CI uploads
+     this file. Editing it here changes nothing until the portal matches. -->
+<!-- GitHub Actions packages artifacts as ZIP files, so zip-file is the root element -->
+<artifact-configuration xmlns="http://signpath.io/artifact-configuration/v1">
+  <parameters>
+    <!-- X.Y.Z.0, set by the workflow from the release tag -->
+    <parameter name="version" required="true" />
+  </parameters>
+  <zip-file>
+    <!-- One launcher per game in GameList.txt, all built from the same source
+         and gathered into a single artifact by CI/prepare-signing-win.sh, so
+         the whole list is covered by one signing request. A wildcard matches
+         exactly one file unless max-matches says otherwise.
+         SignPath Foundation requires the product name and version to be
+         enforced; MudletInstaller.rc.in sets them. -->
+    <pe-file path="MudletInstaller-*.exe" max-matches="unbounded"
+             product-name="MudletInstaller" product-version="${version}">
+      <authenticode-sign/>
+    </pe-file>
+  </zip-file>
+</artifact-configuration>
